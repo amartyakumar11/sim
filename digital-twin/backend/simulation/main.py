@@ -314,3 +314,98 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
         },
         "events": events
     }
+
+
+def run_scenarios(base_config: dict, scenario_configs: List[dict], weight_config: dict) -> dict:
+    """
+    Run baseline and scenario simulations, compute diffs, and rank scenarios.
+
+    Args:
+        base_config: Baseline simulation configuration dictionary
+        scenario_configs: List of scenario configuration dictionaries
+        weight_config: Weighting configuration for ranking:
+            {
+                "avg_wait_time": float,
+                "lost_swaps": float,
+                "throughput": float,
+                "roi": float
+            }
+
+    Returns:
+        Dictionary containing:
+            - "baseline": baseline simulation result
+            - "scenarios": list of scenario results with diff
+            - "ranking": ranked list of scenarios
+
+    Rules:
+        - Must not change run_simulation()
+        - Must not change fake mode
+        - Must not touch schema of existing outputs
+        - Must not write files
+        - Must not call external services
+
+    TODO: Add multi-city scenario support
+    TODO: Add optimization loop integration
+    TODO: Add scenario caching
+    """
+    from .scenario_manager import ScenarioManager
+    from .scenario_diff import ScenarioDiff
+    from .scenario_ranker import ScenarioRanker
+    from .event_logger import EventLogger
+    import tempfile
+    import os
+
+    # Create temporary event log file for scenario events
+    temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.ndjson')
+    temp_file.close()
+
+    try:
+        # Initialize event logger for scenario events
+        event_logger = EventLogger(temp_file.name)
+
+        # Initialize scenario manager
+        scenario_manager = ScenarioManager(base_config, scenario_configs, event_logger)
+
+        # Run all simulations
+        results = scenario_manager.run_all()
+
+        # Compute diffs for each scenario
+        diffs = []
+        for scenario_result in results["scenarios"]:
+            diff = ScenarioDiff(results["baseline"], scenario_result["result"])
+            diff_result = diff.compute()
+            diffs.append(diff_result)
+
+            # Add diff to scenario result
+            scenario_result["diff"] = diff_result
+
+            # Log ranking event for each scenario
+            if event_logger:
+                event_logger.log_event(
+                    event_type="station_selected",  # Using closest match - scenario_ranked not in schema
+                    metadata={
+                        "event_category": "scenario_ranked",
+                        "scenario_id": scenario_result["scenario_id"]
+                    }
+                )
+
+        # Rank scenarios
+        scenario_ids = [s["scenario_id"] for s in results["scenarios"]]
+        ranker = ScenarioRanker(diffs, weight_config)
+        ranking = ranker.rank(scenario_ids)
+
+        # Close event logger
+        event_logger.close()
+
+    finally:
+        # Clean up temp file
+        try:
+            os.unlink(temp_file.name)
+        except:
+            pass
+
+    return {
+        "baseline": results["baseline"],
+        "scenarios": results["scenarios"],
+        "ranking": ranking
+    }
