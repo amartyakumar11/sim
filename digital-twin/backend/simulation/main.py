@@ -134,7 +134,7 @@ def _run_fake_simulation(config: dict, seed: int, city: str) -> dict:
     # Sort events by timestamp
     events.sort(key=lambda x: x["timestamp"])
 
-    return {
+    results = {
         "metadata": {
             "run_id": run_id,
             "start_time": start_time.isoformat(),
@@ -160,6 +160,33 @@ def _run_fake_simulation(config: dict, seed: int, city: str) -> dict:
         },
         "events": events
     }
+
+    # Write artifact files
+    data_dir = config.get("data_dir", "./data/results")
+    os.makedirs(data_dir, exist_ok=True)
+
+    # Write summary.json
+    summary_path = os.path.join(data_dir, "summary.json")
+    with open(summary_path, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+
+    # Write events.ndjson
+    events_path = os.path.join(data_dir, "events.ndjson")
+    with open(events_path, 'w', encoding='utf-8') as f:
+        for event in events:
+            f.write(json.dumps(event, ensure_ascii=False) + '\n')
+
+    # Write frames.ndjson
+    frames_path = os.path.join(data_dir, "frames.ndjson")
+    with open(frames_path, 'w', encoding='utf-8') as f:
+        for index, wait_time_value in enumerate(wait_times):
+            frame = {
+                "t": index,
+                "wait_time": wait_time_value
+            }
+            f.write(json.dumps(frame, ensure_ascii=False) + '\n')
+
+    return results
 
 
 def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
