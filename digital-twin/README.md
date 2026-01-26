@@ -20,9 +20,14 @@ This system allows operators to run what-if scenarios before making real-world i
 git clone <repository-url>
 cd digital-twin
 cp .env.example .env
+cp frontend/.env.example frontend/.env  # Configure frontend environment
 ```
 
-2. **Build and start all services:**
+2. **Set up Mapbox token (optional for map visualization):**
+   - Get a free token from https://www.mapbox.com/
+   - Add to `frontend/.env`: `VITE_MAPBOX_TOKEN=your_token_here`
+
+3. **Build and start all services:**
 ```bash
 docker compose up --build
 ```
@@ -33,19 +38,68 @@ docker compose ps
 ```
 
 4. **Test the API:**
-   - Open http://localhost:8000 in your browser
-   - Visit http://localhost:8000/docs for interactive API documentation
-   - Visit http://localhost:3000 for the frontend (once implemented)
+   - Backend API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs
+   - Frontend UI: http://localhost:3000
 
 ## Services Overview
 
 | Service | Port | Description |
 |---------|------|-------------|
+| Frontend | 3000 | React + Vite user interface |
 | API Server | 8000 | FastAPI backend with simulation endpoints |
-| Frontend | 3000 | React-based user interface |
 | PostgreSQL | 5432 | Primary database for metadata |
 | Redis | 6379 | Task queue and caching |
 | Celery Worker | - | Background task processor |
+
+## Frontend Features
+
+Phase 3 includes a complete React-based UI:
+
+- **Home Dashboard** - System overview and quick navigation
+- **Scenario Submission** - Form to create and submit simulation scenarios
+  - Configure city zones and stations
+  - Define interventions
+  - Set simulation duration
+- **Job Monitor** - Real-time tracking of running simulations
+  - Auto-refresh every 3 seconds
+  - Progress tracking
+  - Job status updates
+- **Results Dashboard** - Comprehensive visualization
+  - KPI summary cards (wait time, utilization, ROI, etc.)
+  - Interactive charts (Recharts)
+  - Station performance metrics
+  - Artifact file paths
+- **Station Map** - Mapbox GL visualization (requires token)
+  - Interactive station markers
+  - Zone visualization
+  - Station details popup
+
+## API Endpoints
+
+### Submit Scenario
+```bash
+POST /api/scenarios/submit
+{
+  "description": "Test scenario",
+  "city_config": {
+    "zones": ["downtown", "suburb_north"],
+    "stations": [...]
+  },
+  "interventions": {},
+  "simulation_duration": 3600
+}
+```
+
+### Get Job Status
+```bash
+GET /api/jobs/{run_id}/status
+```
+
+### Get Job Results
+```bash
+GET /api/jobs/{run_id}/result
+```
 
 ## Development Workflow
 
