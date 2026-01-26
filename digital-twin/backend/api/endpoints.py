@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
@@ -10,9 +10,54 @@ from .models import (
     JobStatusResponse, 
     SimulationResult
 )
-from tasks import run_simulation_task, get_task_status, get_task_result
+from tasks import run_simulation_task, get_task_status, get_task_result, create_job_status
 
 router = APIRouter(prefix="/api", tags=["simulation"])
+
+def validate_city_config(city_config: Dict[str, Any]) -> None:
+    """Validate city configuration structure"""
+    if not isinstance(city_config, dict):
+        raise ValueError("city_config must be a dictionary")
+    
+    # Check for required fields
+    if "zones" not in city_config:
+        raise ValueError("city_config must contain 'zones'")
+    if "stations" not in city_config:
+        raise ValueError("city_config must contain 'stations'")
+        
+    zones = city_config["zones"]
+    stations = city_config["stations"]
+    
+    if not isinstance(zones, list) or not zones:
+        raise ValueError("zones must be a non-empty list")
+        
+    if not isinstance(stations, list) or not stations:
+        raise ValueError("stations must be a non-empty list")
+        
+    # Validate each station
+    for i, station in enumerate(stations):
+        if not isinstance(station, dict):
+            raise ValueError(f"Station {i} must be a dictionary")
+        
+        required_fields = ["station_id", "lat", "lon", "zone_id"]
+        for field in required_fields:
+            if field not in station:
+                raise ValueError(f"Station {i} missing required field: {field}")
+        
+        # Validate latitude and longitude
+        try:
+            lat = float(station["lat"])
+            lon = float(station["lon"])
+            if not (-90 <= lat <= 90):
+                raise ValueError(f"Station {i} latitude must be between -90 and 90")
+            if not (-180 <= lon <= 180):
+                raise ValueError(f"Station {i} longitude must be between -180 and 180")
+        except (ValueError, TypeError):
+            raise ValueError(f"Station {i} lat/lon must be valid numbers")
+            
+        # Validate zone_id exists in zones
+        if station["zone_id"] not in zones:
+            raise ValueError(f"Station {i} zone_id '{station['zone_id']}' not found in zones list")
 
 @router.post("/scenarios/submit", response_model=ScenarioResponse)
 async def submit_scenario(scenario: ScenarioRequest):
@@ -21,7 +66,13 @@ async def submit_scenario(scenario: ScenarioRequest):
     Returns immediately with a run_id for tracking.
     """
     try:
+        # Validate city configuration
+        validate_city_config(scenario.city_config)
+        
         run_id = str(uuid.uuid4())
+        
+        # Create initial job status
+        create_job_status(run_id, scenario.description)
         
         # Submit to Celery for background processing
         task = run_simulation_task.delay(run_id, scenario.dict())
@@ -31,8 +82,21 @@ async def submit_scenario(scenario: ScenarioRequest):
             status="submitted",
             message="Scenario submitted for processing"
         )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Validation error: {str(e)}"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid scenario data: {str(e)}"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Failed to submit scenario: {str(e)}"
+        )
 
 @router.get("/jobs/{run_id}/status", response_model=JobStatusResponse)
 async def get_job_status_endpoint(run_id: str):
@@ -42,8 +106,13 @@ async def get_job_status_endpoint(run_id: str):
     try:
         status_info = get_task_status(run_id)
         return JobStatusResponse(**status_info)
+    except ValueError as e:
+        if "not found" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
+        else:
+            raise HTTPException(status_code=500, detail=f"Error retrieving job status: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Job {run_id} not found")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 @router.get("/jobs/{run_id}/result", response_model=SimulationResult)
 async def get_job_result_endpoint(run_id: str):
@@ -52,6 +121,21 @@ async def get_job_result_endpoint(run_id: str):
     """
     try:
         result = get_task_result(run_id)
+        if result["status"] != "completed":
+            raise HTTPException(
+                status_code=202,  # Accepted - processing not yet complete
+                detail=f"Job {run_id} is not completed. Status: {result['status']}. Check /jobs/{run_id}/status for updates."
+            )
+        return SimulationResult(**result)
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
+    except ValueError as e:
+        if "not found" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
+        else:
+            raise HTTPException(status_code=500, detail=f"Error retrieving results: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
         if result["status"] != "completed":
             raise HTTPException(
                 status_code=400, 

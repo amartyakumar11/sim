@@ -12,10 +12,26 @@ class JobStatus(str, Enum):
 
 class ScenarioRequest(BaseModel):
     """Request model for scenario submission"""
-    description: str = Field(..., description="Human-readable description of the scenario")
-    city_config: Dict[str, Any] = Field(..., description="Base city configuration")
-    interventions: Dict[str, Any] = Field(default_factory=dict, description="Scenario interventions to apply")
-    simulation_duration: int = Field(default=3600, description="Simulation duration in seconds")
+    description: str = Field(
+        ..., 
+        min_length=1,
+        max_length=500,
+        description="Human-readable description of the scenario"
+    )
+    city_config: Dict[str, Any] = Field(
+        ..., 
+        description="Base city configuration with zones and stations"
+    )
+    interventions: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="Scenario interventions to apply"
+    )
+    simulation_duration: int = Field(
+        default=3600,
+        ge=60,  # Minimum 1 minute
+        le=86400,  # Maximum 24 hours 
+        description="Simulation duration in seconds (60-86400)"
+    )
     
     class Config:
         schema_extra = {

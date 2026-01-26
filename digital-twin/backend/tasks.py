@@ -40,45 +40,74 @@ celery_app.conf.update(
     result_serializer='json',
     timezone='UTC',
     enable_utc=True,
-    task_routes={
-        'tasks.run_simulation_task': 'simulation_queue',
-    }
 )
 
 # Job status storage (using Redis)
 def _store_job_status(run_id: str, status: str, message: str = "", progress: float = None):
     """Store job status in Redis for tracking"""
-    from redis import Redis
-    
-    redis_client = Redis.from_url(CELERY_BROKER_URL)
-    
-    job_data = {
-        "run_id": run_id,
-        "status": status,
-        "message": message,
-        "progress": progress,
-        "updated_at": datetime.now().isoformat()
-    }
-    
-    # Store with expiry of 7 days
-    redis_client.setex(f"job_status:{run_id}", 7*24*3600, json.dumps(job_data))
+    try:
+        from redis import Redis
+        
+        redis_client = Redis.from_url(CELERY_BROKER_URL)
+        
+        # Get existing data to preserve created_at
+        existing_data = None
+        try:
+            existing_raw = redis_client.get(f"job_status:{run_id}")
+            if existing_raw:
+                existing_data = json.loads(existing_raw)
+        except Exception:
+            pass
+        
+        current_time = datetime.now().isoformat()
+        job_data = {
+            "run_id": run_id,
+            "status": status,
+            "message": message,
+            "progress": progress,
+            "created_at": existing_data.get("created_at", current_time) if existing_data else current_time,
+            "updated_at": current_time
+        }
+        
+        # Store with expiry of 7 days
+        redis_client.setex(f"job_status:{run_id}", 7*24*3600, json.dumps(job_data))
+    except Exception as e:
+        print(f"Error storing job status for {run_id}: {e}")
+        # Don't fail the task if status storage fails
 
 def _get_job_status(run_id: str) -> Dict[str, Any]:
     """Get job status from Redis"""
-    from redis import Redis
-    
-    redis_client = Redis.from_url(CELERY_BROKER_URL)
-    data = redis_client.get(f"job_status:{run_id}")
-    
-    if not data:
-        raise ValueError(f"Job {run_id} not found")
-    
-    job_data = json.loads(data)
-    # Add created_at if not present (for backward compatibility)
-    if "created_at" not in job_data:
-        job_data["created_at"] = job_data.get("updated_at", datetime.now().isoformat())
-    
-    return job_data
+    try:
+        from redis import Redis
+        
+        redis_client = Redis.from_url(CELERY_BROKER_URL)
+        data = redis_client.get(f"job_status:{run_id}")
+        
+        if not data:
+            raise ValueError(f"Job {run_id} not found")
+        
+        job_data = json.loads(data)
+        # Ensure required fields are present
+        current_time = datetime.now().isoformat()
+        if "created_at" not in job_data:
+            job_data["created_at"] = job_data.get("updated_at", current_time)
+        if "updated_at" not in job_data:
+            job_data["updated_at"] = current_time
+            
+        return job_data
+    except ValueError:
+        raise  # Re-raise "not found" errors
+    except Exception as e:
+        raise ValueError(f"Error retrieving job {run_id}: {str(e)}")
+
+def create_job_status(run_id: str, description: str = ""):
+    """Create initial job status when task is submitted"""
+    _store_job_status(
+        run_id=run_id, 
+        status="submitted", 
+        message=f"Task submitted for processing. {description}".strip(),
+        progress=0.0
+    )
 
 @celery_app.task(bind=True)
 def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
