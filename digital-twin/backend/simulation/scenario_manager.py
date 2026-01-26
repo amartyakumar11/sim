@@ -83,9 +83,12 @@ class ScenarioManager:
                     f"Scenario {i} end_time mismatch: baseline={base_end_time}, scenario={scenario_end_time}"
                 )
 
-    def run_all(self) -> dict:
+    def run_all(self, mode: str = "fake") -> dict:
         """
         Run baseline and all scenario simulations.
+
+        Args:
+            mode: Simulation mode - "fake" (fast, UI-safe) or "real" (full SimPy simulation)
 
         Returns:
             Dictionary containing:
@@ -96,17 +99,22 @@ class ScenarioManager:
         TODO: Add error handling per scenario
         TODO: Add scenario cancellation support
         """
+        # Validate mode
+        if mode not in ("fake", "real"):
+            raise ValueError("mode must be 'fake' or 'real'")
+        
         if self.event_logger:
             self.event_logger.log_event(
                 event_type="rider_arrival",  # Using closest match - scenario_run_started not in schema
                 metadata={
                     "event_category": "scenario_run_started",
-                    "num_scenarios": len(self.scenarios)
+                    "num_scenarios": len(self.scenarios),
+                    "mode": mode
                 }
             )
 
-        # Run baseline simulation
-        baseline_result = run_simulation(self.base_config)
+        # Run baseline simulation with specified mode
+        baseline_result = run_simulation(self.base_config, mode=mode)
 
         # Run all scenario simulations
         scenario_results = []
@@ -115,10 +123,9 @@ class ScenarioManager:
             
             # Merge base_config with scenario overrides
             scenario_config = {**self.base_config, **scenario}
-            scenario_config["mode"] = self.base_config.get("mode", "real")
 
-            # Run scenario simulation
-            scenario_result = run_simulation(scenario_config)
+            # Run scenario simulation with specified mode
+            scenario_result = run_simulation(scenario_config, mode=mode)
 
             scenario_results.append({
                 "scenario_id": scenario_id,

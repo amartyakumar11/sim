@@ -10,6 +10,17 @@ class JobStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+class SimulationRequest(BaseModel):
+    """Request model for single simulation run"""
+    config: Dict[str, Any] = Field(
+        ...,
+        description="Simulation configuration dictionary"
+    )
+    mode: Optional[str] = Field(
+        default="fake",
+        description="Simulation mode: 'fake' (fast, UI-safe) or 'real' (full SimPy simulation)"
+    )
+
 class ScenarioRequest(BaseModel):
     """Request model for scenario submission"""
     description: str = Field(
@@ -32,36 +43,49 @@ class ScenarioRequest(BaseModel):
         le=86400,  # Maximum 24 hours 
         description="Simulation duration in seconds (60-86400)"
     )
+    mode: Optional[str] = Field(
+        default="fake",
+        description="Simulation mode: 'fake' (fast, UI-safe) or 'real' (full SimPy simulation)"
+    )
+
+class ScenarioComparisonRequest(BaseModel):
+    """Request model for scenario comparison"""
+    base_config: Dict[str, Any] = Field(
+        ...,
+        description="Baseline simulation configuration"
+    )
+    scenarios: List[Dict[str, Any]] = Field(
+        ...,
+        description="List of scenario configuration dictionaries"
+    )
+    weights: Dict[str, float] = Field(
+        ...,
+        description="Weighting configuration for ranking"
+    )
+    mode: Optional[str] = Field(
+        default="fake",
+        description="Simulation mode: 'fake' (fast, UI-safe) or 'real' (full SimPy simulation)"
+    )
     
     class Config:
         schema_extra = {
             "example": {
-                "description": "Add 5 charging stations to downtown area",
-                "city_config": {
-                    "zones": ["downtown", "suburb_north", "suburb_south"],
-                    "stations": [
-                        {
-                            "station_id": "st_001",
-                            "lat": 40.7128,
-                            "lon": -74.0060,
-                            "chargers_total": 4,
-                            "chargers_active": 4,
-                            "zone_id": "downtown"
-                        }
-                    ]
+                "base_config": {
+                    "seed": 42,
+                    "city": "Delhi",
+                    "start_time": "2026-01-01T00:00:00",
+                    "end_time": "2026-01-01T06:00:00"
                 },
-                "interventions": {
-                    "add_stations": [
-                        {
-                            "station_id": "st_new_001",
-                            "lat": 40.7150,
-                            "lon": -74.0070,
-                            "chargers_total": 6,
-                            "zone_id": "downtown"
-                        }
-                    ]
+                "scenarios": [
+                    {"scenario_id": "scenario_1", "revenue_per_swap": 600.0}
+                ],
+                "weights": {
+                    "avg_wait_time": 0.25,
+                    "lost_swaps": 0.20,
+                    "throughput": 0.20,
+                    "roi": 0.35
                 },
-                "simulation_duration": 3600
+                "mode": "fake"
             }
         }
 

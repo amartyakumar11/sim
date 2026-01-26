@@ -23,6 +23,7 @@ const { TextArea } = Input
 function ScenarioSubmission() {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState("fake")
   const [stations, setStations] = useState([
     {
       station_id: 'st_001',
@@ -45,7 +46,8 @@ function ScenarioSubmission() {
           stations: stations
         },
         interventions: values.interventions ? JSON.parse(values.interventions) : {},
-        simulation_duration: values.simulation_duration
+        simulation_duration: values.simulation_duration,
+        mode: mode
       }
 
       const response = await simulationAPI.submitScenario(scenarioData)
@@ -123,6 +125,27 @@ function ScenarioSubmission() {
               style={{ width: '100%' }}
               addonAfter="seconds"
             />
+          </Form.Item>
+
+          <Form.Item
+            label="Simulation Mode"
+            help="Fake mode is fast and UI-safe. Real mode uses full SimPy simulation (slower, accurate)."
+          >
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={mode === "real"}
+                onChange={(e) => setMode(e.target.checked ? "real" : "fake")}
+                style={{ marginRight: 4 }}
+              />
+              Use Real Simulation (slower, accurate)
+            </label>
+            {mode === "fake" && (
+              <Tag color="green" style={{ marginTop: 8 }}>Fast Mode (UI-safe)</Tag>
+            )}
+            {mode === "real" && (
+              <Tag color="blue" style={{ marginTop: 8 }}>Real Mode (Full SimPy)</Tag>
+            )}
           </Form.Item>
 
           <Divider orientation="left">Stations Configuration</Divider>

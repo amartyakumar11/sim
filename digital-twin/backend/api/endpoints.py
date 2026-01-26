@@ -8,7 +8,9 @@ from .models import (
     ScenarioRequest, 
     ScenarioResponse, 
     JobStatusResponse, 
-    SimulationResult
+    SimulationResult,
+    SimulationRequest,
+    ScenarioComparisonRequest
 )
 from tasks import run_simulation_task, get_task_status, get_task_result, create_job_status
 
@@ -152,6 +154,77 @@ async def cancel_job(run_id: str):
     """
     # TODO: Implement job cancellation
     return {"message": f"Job {run_id} cancellation not yet implemented"}
+
+@router.post("/run-simulation")
+async def run_simulation_endpoint(request: SimulationRequest):
+    """
+    Run a single simulation with specified mode.
+    
+    Supports 'fake' mode (fast, UI-safe) and 'real' mode (full SimPy simulation).
+    """
+    try:
+        # Validate mode
+        mode = request.mode or "fake"
+        if mode not in ("fake", "real"):
+            raise HTTPException(
+                status_code=400,
+                detail="mode must be 'fake' or 'real'"
+            )
+        
+        # Import simulation function
+        from backend.simulation.main import run_simulation
+        
+        # Prepare config with mode
+        config = request.config.copy()
+        config["mode"] = mode
+        
+        # Run simulation
+        result = run_simulation(config, mode=mode)
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Simulation failed: {str(e)}"
+        )
+
+@router.post("/run-scenarios")
+async def run_scenarios_endpoint(request: ScenarioComparisonRequest):
+    """
+    Run baseline and scenario simulations with comparison and ranking.
+    
+    Supports 'fake' mode (fast, UI-safe) and 'real' mode (full SimPy simulation).
+    """
+    try:
+        # Validate mode
+        mode = request.mode or "fake"
+        if mode not in ("fake", "real"):
+            raise HTTPException(
+                status_code=400,
+                detail="mode must be 'fake' or 'real'"
+            )
+        
+        # Import simulation function
+        from backend.simulation.main import run_scenarios
+        
+        # Run scenarios
+        result = run_scenarios(
+            base_config=request.base_config,
+            scenario_configs=request.scenarios,
+            weight_config=request.weights,
+            mode=mode
+        )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Scenario comparison failed: {str(e)}"
+        )
 
 @router.get("/health")
 async def health_check():

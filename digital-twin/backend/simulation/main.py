@@ -22,13 +22,12 @@ except ImportError:
     SIMPY_AVAILABLE = False
 
 
-def run_simulation(config: dict) -> dict:
+def run_simulation(config: dict, mode: str = "fake") -> dict:
     """
     Run simulation in fake or real mode.
 
     Args:
         config: Configuration dictionary containing:
-            - "mode": str ("fake" or "real")
             - "seed": int (RNG seed for determinism)
             - "start_time": datetime (for real mode)
             - "end_time": datetime (for real mode)
@@ -36,6 +35,7 @@ def run_simulation(config: dict) -> dict:
             - "stations": list[dict] (for real mode)
             - "demand_config": dict (for real mode)
             - "inventory_config": dict (for real mode)
+        mode: Simulation mode - "fake" (fast, UI-safe) or "real" (full SimPy simulation)
 
     Returns:
         Dictionary matching the stable return schema:
@@ -46,14 +46,19 @@ def run_simulation(config: dict) -> dict:
             "events": [...]
         }
     """
-    mode = config.get("mode", "fake")
+    # Validate mode
+    if mode not in ("fake", "real"):
+        raise ValueError("mode must be 'fake' or 'real'")
+    
     seed = config.get("seed", 42)
     city = config.get("city", "default")
 
     if mode == "fake":
         return _run_fake_simulation(config, seed, city)
-    else:
+    elif mode == "real":
         return _run_real_simulation(config, seed, city)
+    else:
+        raise ValueError("mode must be 'fake' or 'real'")
 
 
 def _run_fake_simulation(config: dict, seed: int, city: str) -> dict:
@@ -316,7 +321,7 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
     }
 
 
-def run_scenarios(base_config: dict, scenario_configs: List[dict], weight_config: dict) -> dict:
+def run_scenarios(base_config: dict, scenario_configs: List[dict], weight_config: dict, mode: str = "fake") -> dict:
     """
     Run baseline and scenario simulations, compute diffs, and rank scenarios.
 
@@ -330,6 +335,7 @@ def run_scenarios(base_config: dict, scenario_configs: List[dict], weight_config
                 "throughput": float,
                 "roi": float
             }
+        mode: Simulation mode - "fake" (fast, UI-safe) or "real" (full SimPy simulation)
 
     Returns:
         Dictionary containing:
@@ -348,6 +354,9 @@ def run_scenarios(base_config: dict, scenario_configs: List[dict], weight_config
     TODO: Add optimization loop integration
     TODO: Add scenario caching
     """
+    # Validate mode
+    if mode not in ("fake", "real"):
+        raise ValueError("mode must be 'fake' or 'real'")
     from .scenario_manager import ScenarioManager
     from .scenario_diff import ScenarioDiff
     from .scenario_ranker import ScenarioRanker
@@ -366,8 +375,8 @@ def run_scenarios(base_config: dict, scenario_configs: List[dict], weight_config
         # Initialize scenario manager
         scenario_manager = ScenarioManager(base_config, scenario_configs, event_logger)
 
-        # Run all simulations
-        results = scenario_manager.run_all()
+        # Run all simulations with specified mode
+        results = scenario_manager.run_all(mode=mode)
 
         # Compute diffs for each scenario
         diffs = []
