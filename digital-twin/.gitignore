@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+backend/data/results/
+node_modules/
+dist/
+.next/

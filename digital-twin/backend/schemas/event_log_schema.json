@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "required": ["event_id", "timestamp", "event_type"],
+  "properties": {
+    "event_id": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "event_type": { "type": "string" },
+    "station_id": { "type": ["string", "null"] },
+    "rider_id": { "type": ["string", "null"] },
+    "battery_id": { "type": ["string", "null"] },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
