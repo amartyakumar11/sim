@@ -296,6 +296,9 @@ class DemandGenerator:
             event_multiplier = self.event_modifier.get_multiplier(current_time)
             station_weight = self.station_skew.get_weight(station.station_id)
 
+            # Get station location for routing
+            rider_location = (station.latitude, station.longitude)
+
             # Log rider_arrival event
             self.event_logger.log_event(
                 event_type="rider_arrival",
@@ -320,7 +323,8 @@ class DemandGenerator:
                     "tod_multiplier": tod_multiplier,
                     "weather_multiplier": weather_multiplier,
                     "event_multiplier": event_multiplier,
-                    "station_weight": station_weight
+                    "station_weight": station_weight,
+                    "rider_location": rider_location
                 }
             }
             arrivals.append(arrival)

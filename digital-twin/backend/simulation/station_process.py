@@ -6,7 +6,7 @@ Manages station operations using SimPy resources for swap bays and chargers.
 
 from typing import Optional
 import simpy
-from .rider import Rider
+from .rider import Rider, RiderStatus
 from .inventory_manager import InventoryManager
 from .event_logger import EventLogger
 
@@ -24,6 +24,7 @@ class StationProcess:
         env: simpy.Environment,
         swap_bays_count: int,
         chargers_count: int,
+        inventory: int,
         inventory_manager: InventoryManager,
         event_logger: EventLogger
     ):
@@ -35,6 +36,7 @@ class StationProcess:
             env: SimPy environment
             swap_bays_count: Number of swap bays available
             chargers_count: Number of chargers available
+            inventory: Initial battery inventory count
             inventory_manager: InventoryManager instance
             event_logger: EventLogger instance for logging events
         """
@@ -42,6 +44,7 @@ class StationProcess:
         self.env = env
         self.swap_bays = simpy.Resource(env, capacity=swap_bays_count)
         self.chargers = simpy.Resource(env, capacity=chargers_count)
+        self.inventory = inventory
         self.inventory_manager = inventory_manager
         self.event_logger = event_logger
 
@@ -49,122 +52,123 @@ class StationProcess:
         # TODO: Add fairness policies
         # TODO: Add service time distributions
 
-    def can_accept_rider(self) -> bool:
+    def request_swap(self, rider: Rider) -> simpy.events.Process:
         """
-        Check if station can accept a new rider.
-
-        Returns:
-            True if station can accept rider, False otherwise
-
-        TODO: Implement actual capacity checks
-        TODO: Check swap bay availability
-        TODO: Check inventory availability
-        TODO: Check queue length limits
-        TODO: Consider station status (up/down)
-        """
-        # TODO: Check if swap bays are available
-        # TODO: Check if inventory is available
-        # TODO: Check queue length vs capacity
-        # TODO: Check station status
-        # TODO: Return True if all conditions met
-
-        # Placeholder: always return True
-        return True
-
-    def handle_rider(self, rider: Rider):
-        """
-        Handle a rider arrival at the station.
+        Request a swap operation for a rider.
 
         Args:
-            rider: Rider instance to handle
+            rider: Rider instance requesting swap
 
-        Yields:
-            SimPy events (placeholder)
+        Returns:
+            SimPy process for swap operation
 
-        TODO: Implement actual rider handling logic
-        TODO: Check if station can accept rider
-        TODO: Add to queue or reject
-        TODO: Emit appropriate events
+        TODO: Add queue priority logic
+        TODO: Add fairness policies
         """
-        # TODO: Check can_accept_rider()
-        # TODO: If accepted, add to queue
-        # TODO: If rejected, mark rider as lost or reroute
-        # TODO: Emit station_accept_rider or station_reject_rider event
-        # TODO: Yield to SimPy environment
+        return self.env.process(self._process_swap(rider, self.env))
 
-        if self.can_accept_rider():
-            self.event_logger.log_event(
-                event_type="queue_join",
-                station_id=self.station_id,
-                rider_id=rider.id
-            )
-            # Placeholder: yield immediately
-            yield self.env.timeout(0)
-        else:
-            self.event_logger.log_event(
-                event_type="lost_swap",
-                station_id=self.station_id,
-                rider_id=rider.id,
-                metadata={"reason": "station_full"}
-            )
-            rider.mark_lost()
-            yield self.env.timeout(0)
-
-    def process_swap(self, rider: Rider):
+    def _process_swap(self, rider: Rider, env: simpy.Environment):
         """
         Process a battery swap operation for a rider.
 
         Args:
             rider: Rider instance to serve
+            env: SimPy environment
 
         Yields:
-            SimPy events (placeholder)
+            SimPy events
 
-        TODO: Implement actual swap processing logic
-        TODO: Acquire swap bay resource
-        TODO: Check inventory availability
-        TODO: Consume battery from inventory
-        TODO: Process swap operation
-        TODO: Release swap bay resource
-        TODO: Emit swap events
+        TODO: Add service time variation
+        TODO: Add failure handling
         """
-        # TODO: Acquire swap bay resource (with timeout)
-        # TODO: Check inventory availability
-        # TODO: Consume battery if available
-        # TODO: If no battery, handle stockout
-        # TODO: Process swap (wait for service time)
-        # TODO: Release swap bay
-        # TODO: Emit swap_started and swap_completed events
-        # TODO: Yield to SimPy environment
+        # Check inventory availability
+        if self.inventory <= 0:
+            rider.status = RiderStatus.LOST
+            self.event_logger.log_event(
+                event_type="inventory_stockout",
+                station_id=self.station_id,
+                rider_id=rider.rider_id,
+                metadata={"queue_length": len(self.swap_bays.queue)}
+            )
+            return
 
-        # Placeholder: acquire swap bay
-        with self.swap_bays.request() as bay_request:
-            yield bay_request
+        # Consume battery from inventory
+        if not self.inventory_manager.consume(self.station_id):
+            rider.status = RiderStatus.LOST
+            self.event_logger.log_event(
+                event_type="inventory_stockout",
+                station_id=self.station_id,
+                rider_id=rider.rider_id
+            )
+            return
+
+        self.inventory -= 1
+
+        # Log swap start
+        self.event_logger.log_event(
+            event_type="swap_start",
+            station_id=self.station_id,
+            rider_id=rider.rider_id,
+            metadata={
+                "inventory": self.inventory,
+                "queue_length": len(self.swap_bays.queue)
+            }
+        )
+
+        # Process swap (simulate service time)
+        # TODO: Use configurable service time distribution
+        service_time = 5.0  # minutes - placeholder
+        yield env.timeout(service_time)
+
+        # Log swap completion
+        self.event_logger.log_event(
+            event_type="swap_complete",
+            station_id=self.station_id,
+            rider_id=rider.rider_id,
+            metadata={"inventory": self.inventory}
+        )
+
+        # Trigger battery charging for the consumed battery
+        env.process(self._charge_battery(env))
+
+    def _charge_battery(self, env: simpy.Environment):
+        """
+        Charge a battery using a charger.
+
+        Args:
+            env: SimPy environment
+
+        Yields:
+            SimPy events
+
+        TODO: Add charging time variation
+        TODO: Add charger failure handling
+        """
+        # Request charger
+        with self.chargers.request() as charger_request:
+            yield charger_request
 
             self.event_logger.log_event(
-                event_type="swap_start",
+                event_type="charge_start",
                 station_id=self.station_id,
-                rider_id=rider.id
+                metadata={
+                    "chargers_available": self.chargers.capacity - len(self.chargers.queue),
+                    "inventory": self.inventory
+                }
             )
 
-            # Check inventory
-            if self.inventory_manager.consume(self.station_id):
-                # Placeholder: process swap (no actual time yet)
-                yield self.env.timeout(0)
+            # Charge battery (simulate charge time)
+            # TODO: Use configurable charge time distribution
+            charge_time = 30.0  # minutes - placeholder
+            yield env.timeout(charge_time)
 
-                self.event_logger.log_event(
-                    event_type="swap_complete",
-                    station_id=self.station_id,
-                    rider_id=rider.id
-                )
-            else:
-                # Inventory stockout
-                self.event_logger.log_event(
-                    event_type="inventory_stockout",
-                    station_id=self.station_id,
-                    rider_id=rider.id
-                )
-                rider.mark_lost()
+            # Battery charged - add back to inventory
+            self.inventory += 1
+            self.event_logger.log_event(
+                event_type="charge_complete",
+                station_id=self.station_id,
+                metadata={"inventory": self.inventory}
+            )
 
     def snapshot(self) -> dict:
         """
@@ -172,20 +176,15 @@ class StationProcess:
 
         Returns:
             Dictionary containing station process attributes
-
-        TODO: Include resource utilization
-        TODO: Include queue length
-        TODO: Include current riders being served
         """
-        # TODO: Calculate swap bay utilization
-        # TODO: Calculate charger utilization
-        # TODO: Get queue length
-        # TODO: Get current service count
-
         return {
             "station_id": self.station_id,
             "swap_bays_capacity": self.swap_bays.capacity,
             "swap_bays_available": self.swap_bays.capacity - len(self.swap_bays.queue),
+            "swap_bays_in_use": self.swap_bays.capacity - self.swap_bays.count,
             "chargers_capacity": self.chargers.capacity,
-            "chargers_available": self.chargers.capacity - len(self.chargers.queue)
+            "chargers_available": self.chargers.capacity - len(self.chargers.queue),
+            "chargers_in_use": self.chargers.capacity - self.chargers.count,
+            "inventory": self.inventory,
+            "queue_length": len(self.swap_bays.queue)
         }

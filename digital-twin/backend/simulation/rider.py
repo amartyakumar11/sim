@@ -30,7 +30,8 @@ class Rider:
         self,
         rider_id: str,
         arrival_time: datetime,
-        assigned_station_id: str,
+        target_station_id: str,
+        patience_timeout: float,
         event_logger: EventLogger
     ):
         """
@@ -39,153 +40,81 @@ class Rider:
         Args:
             rider_id: Unique rider identifier
             arrival_time: Time when rider arrived
-            assigned_station_id: Station assigned to serve this rider
+            target_station_id: Station assigned to serve this rider
+            patience_timeout: Maximum wait time in minutes before abandonment
             event_logger: EventLogger instance for logging events
         """
-        self.id = rider_id
+        self.rider_id = rider_id
         self.arrival_time = arrival_time
-        self.assigned_station_id = assigned_station_id
-        self.start_service_time: Optional[datetime] = None
-        self.end_service_time: Optional[datetime] = None
+        self.target_station_id = target_station_id
+        self.patience_timeout = patience_timeout
         self.status = RiderStatus.WAITING
         self.event_logger = event_logger
+        self.start_service_time: Optional[datetime] = None
+        self.end_service_time: Optional[datetime] = None
 
-        # TODO: Add timeout configuration
-        # TODO: Add abandonment threshold
+        # TODO: Add abandonment threshold configuration
         # TODO: Add reroute eligibility flags
 
-        # Log rider creation
+    def process(self, env: simpy.Environment, station_process):
+        """
+        Process rider lifecycle through the simulation.
+
+        Args:
+            env: SimPy environment
+            station_process: StationProcess instance to request service from
+
+        Yields:
+            SimPy events
+
+        TODO: Add priority queue support
+        TODO: Add dynamic reroute logic
+        TODO: Add abandonment reason tracking
+        """
+        # Log rider arrival
         self.event_logger.log_event(
             event_type="rider_arrival",
-            station_id=assigned_station_id,
-            rider_id=rider_id,
-            metadata={"arrival_time": arrival_time.isoformat()}
+            station_id=self.target_station_id,
+            rider_id=self.rider_id,
+            metadata={"arrival_time": self.arrival_time.isoformat()}
         )
 
-    def wait(self, env: simpy.Environment):
-        """
-        Simulate rider waiting in queue.
-
-        Args:
-            env: SimPy environment
-
-        Yields:
-            SimPy events (placeholder)
-
-        TODO: Implement actual queue waiting logic
-        TODO: Add timeout handling
-        TODO: Add abandonment logic (if wait time exceeds threshold)
-        TODO: Emit queue_join event
-        TODO: Track wait start time
-        """
-        # TODO: Log queue_join event
-        # TODO: Wait for service availability
-        # TODO: Check timeout periodically
-        # TODO: Handle abandonment if timeout exceeded
-        # TODO: Yield to SimPy environment
-
+        # Request swap bay with patience timeout
+        wait_start_time = env.now
         self.event_logger.log_event(
             event_type="queue_join",
-            station_id=self.assigned_station_id,
-            rider_id=self.id
+            station_id=self.target_station_id,
+            rider_id=self.rider_id,
+            metadata={"queue_length": len(station_process.swap_bays.queue)}
         )
 
-        # Placeholder: yield immediately (no actual waiting yet)
-        yield env.timeout(0)
+        # Request swap bay with timeout
+        with station_process.swap_bays.request() as bay_request:
+            # Wait for bay or timeout
+            timeout_event = env.timeout(self.patience_timeout)
+            result = yield bay_request | timeout_event
 
-    def serve(self, env: simpy.Environment):
-        """
-        Simulate rider being served (battery swap).
-
-        Args:
-            env: SimPy environment
-
-        Yields:
-            SimPy events (placeholder)
-
-        TODO: Implement actual service logic
-        TODO: Track service start time
-        TODO: Wait for swap completion
-        TODO: Track service end time
-        TODO: Update status to SERVED
-        TODO: Emit rider_served event
-        """
-        # TODO: Record start_service_time
-        # TODO: Wait for swap operation to complete
-        # TODO: Record end_service_time
-        # TODO: Calculate service duration
-        # TODO: Update status to SERVED
-        # TODO: Yield to SimPy environment
-
-        self.start_service_time = datetime.fromtimestamp(env.now)
-        # Placeholder: yield immediately (no actual service time yet)
-        yield env.timeout(0)
-        self.end_service_time = datetime.fromtimestamp(env.now)
-        self.status = RiderStatus.SERVED
-
-        self.event_logger.log_event(
-            event_type="swap_complete",
-            station_id=self.assigned_station_id,
-            rider_id=self.id,
-            metadata={
-                "service_duration": (
-                    (self.end_service_time - self.start_service_time).total_seconds()
-                    if self.start_service_time and self.end_service_time
-                    else 0
+            if timeout_event in result:
+                # Patience exceeded - rider abandons
+                self.status = RiderStatus.LOST
+                wait_time_minutes = env.now - wait_start_time
+                self.event_logger.log_event(
+                    event_type="lost_swap",
+                    station_id=self.target_station_id,
+                    rider_id=self.rider_id,
+                    metadata={"abandonment_reason": "patience_timeout", "wait_time": wait_time_minutes}
                 )
-            }
-        )
+                return
 
-    def mark_lost(self):
-        """
-        Mark rider as lost (abandoned or timed out).
+            # Got swap bay - process swap
+            # Store simulation time for datetime conversion
+            self._service_start_sim = env.now
+            yield env.process(station_process._process_swap(self, env))
 
-        TODO: Implement abandonment logic
-        TODO: Track abandonment reason
-        TODO: Emit rider_lost event
-        """
-        # TODO: Determine abandonment reason (timeout, queue too long, etc.)
-        # TODO: Update status to LOST
-        # TODO: Record abandonment metrics
-
-        self.status = RiderStatus.LOST
-        self.event_logger.log_event(
-            event_type="lost_swap",
-            station_id=self.assigned_station_id,
-            rider_id=self.id,
-            metadata={"abandonment_reason": "timeout"}
-        )
-
-    def mark_rerouted(self, new_station_id: str):
-        """
-        Mark rider as rerouted to a different station.
-
-        Args:
-            new_station_id: New station identifier
-
-        TODO: Implement reroute logic
-        TODO: Update assigned_station_id
-        TODO: Track reroute reason
-        TODO: Emit rider_rerouted event
-        """
-        # TODO: Validate new_station_id exists
-        # TODO: Update assigned_station_id
-        # TODO: Update status to REROUTED
-        # TODO: Record reroute metrics
-
-        old_station_id = self.assigned_station_id
-        self.assigned_station_id = new_station_id
-        self.status = RiderStatus.REROUTED
-
-        self.event_logger.log_event(
-            event_type="reroute",
-            station_id=new_station_id,
-            rider_id=self.id,
-            metadata={
-                "old_station_id": old_station_id,
-                "new_station_id": new_station_id
-            }
-        )
+            if self.status != RiderStatus.LOST:
+                self.status = RiderStatus.SERVED
+                self._service_end_sim = env.now
+                # swap_complete event is logged in station_process._process_swap
 
     def snapshot(self) -> dict:
         """
@@ -193,18 +122,11 @@ class Rider:
 
         Returns:
             Dictionary containing rider attributes
-
-        TODO: Include all state information
-        TODO: Calculate derived metrics (wait time, service time)
         """
-        # TODO: Calculate wait_time if served
-        # TODO: Calculate service_time if completed
-        # TODO: Include all status information
-
         return {
-            "rider_id": self.id,
+            "rider_id": self.rider_id,
             "arrival_time": self.arrival_time.isoformat(),
-            "assigned_station_id": self.assigned_station_id,
+            "target_station_id": self.target_station_id,
             "start_service_time": (
                 self.start_service_time.isoformat()
                 if self.start_service_time else None
