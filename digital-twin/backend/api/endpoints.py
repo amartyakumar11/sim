@@ -136,14 +136,6 @@ async def get_job_result_endpoint(run_id: str):
             raise HTTPException(status_code=500, detail=f"Error retrieving results: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-        if result["status"] != "completed":
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Job {run_id} is not completed. Status: {result['status']}"
-            )
-        return SimulationResult(**result)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
 
 @router.get("/jobs")
 async def list_jobs():
