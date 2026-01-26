@@ -2,6 +2,255 @@
 
 Production-grade digital twin for EV battery swap networks.
 
+## Overview
+
+This system allows operators to run what-if scenarios before making real-world infrastructure or policy changes to EV battery swap networks. Built with FastAPI, Celery, PostgreSQL, and Redis.
+
+## Prerequisites
+
+- Docker and Docker Compose
+- Git
+- Optional: Node.js 18+ (for local frontend development)
+- Optional: Python 3.11+ (for local backend development)
+
+## Quick Start
+
+1. **Clone and setup environment:**
+```bash
+git clone <repository-url>
+cd digital-twin
+cp .env.example .env
+```
+
+2. **Build and start all services:**
+```bash
+docker compose up --build
+```
+
+3. **Verify services are running:**
+```bash
+docker compose ps
+```
+
+4. **Test the API:**
+   - Open http://localhost:8000 in your browser
+   - Visit http://localhost:8000/docs for interactive API documentation
+   - Visit http://localhost:3000 for the frontend (once implemented)
+
+## Services Overview
+
+| Service | Port | Description |
+|---------|------|-------------|
+| API Server | 8000 | FastAPI backend with simulation endpoints |
+| Frontend | 3000 | React-based user interface |
+| PostgreSQL | 5432 | Primary database for metadata |
+| Redis | 6379 | Task queue and caching |
+| Celery Worker | - | Background task processor |
+
+## Development Workflow
+
+### Starting Services
+
+**Start all services:**
+```bash
+docker compose up -d
+```
+
+**Start specific services:**
+```bash
+# Database services only
+docker compose up -d postgres redis
+
+# Backend services
+docker compose up -d postgres redis api worker
+
+# Full stack
+docker compose up -d
+```
+
+### Checking Service Status
+
+```bash
+# View running containers
+docker compose ps
+
+# Check service logs
+docker compose logs api
+docker compose logs worker
+docker compose logs postgres
+docker compose logs redis
+
+# Follow logs in real-time
+docker compose logs -f api
+```
+
+### API Testing
+
+**Health Check:**
+```bash
+curl http://localhost:8000/health
+```
+
+**Submit Test Scenario:**
+```bash
+curl -X POST "http://localhost:8000/api/scenarios/submit" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Test scenario",
+    "city_config": {
+      "zones": ["downtown"],
+      "stations": [{
+        "station_id": "st_001",
+        "lat": 40.7128,
+        "lon": -74.0060,
+        "chargers_total": 4,
+        "zone_id": "downtown"
+      }]
+    },
+    "simulation_duration": 60
+  }'
+```
+
+**Check Job Status:**
+```bash
+curl http://localhost:8000/api/jobs/{run_id}/status
+```
+
+### Rebuilding After Changes
+
+**Rebuild specific service:**
+```bash
+docker compose build api
+docker compose up -d api
+```
+
+**Rebuild all services:**
+```bash
+docker compose build
+docker compose up -d
+```
+
+## API Endpoints
+
+### Core Endpoints
+- `GET /` - API information
+- `GET /health` - Health check
+- `GET /docs` - Interactive API documentation
+
+### Simulation Endpoints
+- `POST /api/scenarios/submit` - Submit simulation scenario
+- `GET /api/jobs/{run_id}/status` - Get job status
+- `GET /api/jobs/{run_id}/result` - Get simulation results
+- `GET /api/jobs` - List all jobs
+- `DELETE /api/jobs/{run_id}` - Cancel job
+
+## Configuration
+
+Key environment variables in `.env`:
+
+```env
+# Database
+POSTGRES_DB=twin
+POSTGRES_USER=twin_user
+POSTGRES_PASSWORD=twin_pass
+
+# Redis
+REDIS_URL=redis://redis:6379/0
+
+# External APIs
+MAPBOX_TOKEN=your_mapbox_token_here
+OPENAI_API_KEY=your_openai_key_here
+
+# Security
+SECRET_KEY=your-super-secret-key
+```
+
+## Data Storage
+
+Simulation artifacts are stored in:
+```
+/data/results/<run_id>/
+├── events.ndjson    # Event log
+├── frames.ndjson    # Frame snapshots  
+└── summary.json     # KPI summary
+```
+
+## Troubleshooting
+
+### Service Won't Start
+```bash
+# Check logs for errors
+docker compose logs <service-name>
+
+# Restart specific service
+docker compose restart <service-name>
+
+# Full restart
+docker compose down && docker compose up -d
+```
+
+### Database Connection Issues
+```bash
+# Check PostgreSQL health
+docker compose exec postgres pg_isready -U twin_user
+
+# Check Redis connection
+docker compose exec redis redis-cli ping
+```
+
+### Task Processing Issues
+```bash
+# Check worker status
+docker compose logs worker
+
+# Check Redis queue length
+docker compose exec redis redis-cli llen celery
+
+# Restart worker
+docker compose restart worker
+```
+
+### API Not Responding
+```bash
+# Check API logs
+docker compose logs api
+
+# Test API directly
+curl http://localhost:8000/health
+
+# Restart API service
+docker compose restart api
+```
+
+## Development
+
+### Local Development Setup
+
+**Backend:**
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Testing
+```bash
+# Test API endpoints
+curl http://localhost:8000/docs
+
+# Check service health
+docker compose exec api curl http://localhost:8000/health
+```
+
 ## Team Rules
 
 - Nobody commits directly to main
@@ -29,9 +278,22 @@ Production-grade digital twin for EV battery swap networks.
 - backend/database/
 - backend/requirements.txt
 
-## Quick Start
+## Architecture
 
-```bash
-cp .env.example .env
-docker compose up --build
+```mermaid
+graph TB
+    UI[Frontend UI] --> API[FastAPI Server]
+    API --> Worker[Celery Worker]
+    API --> DB[(PostgreSQL)]
+    Worker --> Redis[(Redis)]
+    Worker --> Sim[Simulation Engine]
+    Sim --> Files[Data Files]
 ```
+
+## Support
+
+For issues or questions:
+1. Check the troubleshooting section above
+2. Review service logs: `docker compose logs <service>`
+3. Ensure all prerequisites are met
+4. Create an issue with detailed logs and steps to reproduce
