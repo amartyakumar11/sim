@@ -10,9 +10,12 @@ from .models import (
     JobStatusResponse, 
     SimulationResult,
     SimulationRequest,
-    ScenarioComparisonRequest
+    ScenarioComparisonRequest,
+    NLToToonRequest,
 )
 from tasks import run_simulation_task, get_task_status, get_task_result, create_job_status
+from nlp.nl_to_toon import translate_nl_to_toon
+from nlp.toon_parser import ToonParseError
 
 router = APIRouter(prefix="/api", tags=["simulation"])
 
@@ -257,74 +260,26 @@ async def run_scenarios_endpoint(request: ScenarioComparisonRequest):
         )
 
 @router.post("/nl-to-toon")
-async def nl_to_toon_endpoint(payload: dict):
+async def nl_to_toon_endpoint(request: NLToToonRequest):
     """
     Translate natural language scenario to TOON DSL configuration.
     
     Stateless endpoint - no simulation triggering, no state storage.
-    
-    Request body:
-        {
-            "text": "Add 2 chargers at CP_01",
-            "city": "Bangalore"  # optional, defaults to "Bangalore"
-        }
-    
-    Returns:
-        {
-            "toon": {
-                "base": {...},
-                "stations": {...},
-                "demand": {...},
-                "constraints": {...}
-            }
-        }
     """
     try:
-        text = payload.get("text")
-        city = payload.get("city", "Bangalore")
-        
-        if not text:
-            raise HTTPException(status_code=400, detail="Missing 'text' field in request body")
-        
-        # Import translator (lazy import to avoid circular dependencies)
-        from nlp.nl_to_toon import translate_nl_to_toon
-        from nlp.toon_parser import ToonParseError
-        
-        # Get station catalog for city
+        city = request.city or "Bangalore"
         station_catalog = get_station_catalog(city)
-        
-        # Translate natural language to TOON
-        scenario_config = translate_nl_to_toon(text, station_catalog, city)
-        
-        return {
-            "toon": scenario_config
-        }
-        
+        toon = translate_nl_to_toon(request.text, station_catalog, city)
+        return {"toon": toon}
     except ToonParseError as e:
         raise HTTPException(
             status_code=400,
-            detail=f"TOON parsing error: {str(e)}"
-        )
-    except RuntimeError as e:
-        # Gemini API errors
-        if "GEMINI_API_KEY" in str(e):
-            raise HTTPException(
-                status_code=500,
-                detail="Gemini API key not configured"
-            )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Translation failed: {str(e)}"
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Validation error: {str(e)}"
+            detail=str(e),
         )
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Unexpected error: {str(e)}"
+            detail=f"Unexpected error: {str(e)}",
         )
 
 @router.get("/health")
