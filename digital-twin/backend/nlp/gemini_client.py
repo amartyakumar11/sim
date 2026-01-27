@@ -8,7 +8,7 @@ Responsibilities:
 - Zero business logic
 
 Implementation rules:
-- Use google-generativeai
+- Use supported google-genai client
 - No retries
 - No streaming
 - No temperature randomness
@@ -17,7 +17,12 @@ Implementation rules:
 """
 
 import os
-import google.generativeai as genai
+from google import genai
+
+
+# Fail fast if API key is missing
+if not os.getenv("GEMINI_API_KEY"):
+    raise RuntimeError("GEMINI_API_KEY is not set in environment")
 
 
 class GeminiClient:
@@ -30,17 +35,9 @@ class GeminiClient:
     def __init__(self):
         """
         Initialize Gemini client with API key from environment.
-        
-        Raises:
-            RuntimeError: If GEMINI_API_KEY is not set
         """
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise RuntimeError("GEMINI_API_KEY is not set")
-        
-        genai.configure(api_key=api_key)
-        # Use Gemini 1.5 Flash for fast, low-latency translation
-        self.model = genai.GenerativeModel("models/gemini-pro")
+        api_key = os.environ["GEMINI_API_KEY"]
+        self.client = genai.Client(api_key=api_key)
     
     def generate_toon(self, prompt: str) -> str:
         """
@@ -55,33 +52,29 @@ class GeminiClient:
         Raises:
             RuntimeError: If Gemini returns empty or malformed response
         """
-        response = self.model.generate_content(
-            prompt,
-            generation_config={
+        response = self.client.models.generate_content(
+            model="gemini-pro",
+            contents=prompt,
+            config={
                 "temperature": 0,
                 "top_p": 1,
                 "top_k": 1,
-                "max_output_tokens": 2048,
-            }
+            },
         )
         
-        if not response:
-            raise RuntimeError("Gemini returned empty response")
+        if not response or not getattr(response, "candidates", None):
+            raise RuntimeError("Gemini returned no candidates")
         
-        # Handle both response.text and response.candidates access patterns
-        # (newer versions of google-generativeai may require candidates access)
         try:
-            text = response.text
-        except (AttributeError, TypeError):
-            # Fallback to candidates access pattern
-            if not response.candidates or len(response.candidates) == 0:
-                raise RuntimeError("Gemini returned empty response")
-            candidate = response.candidates[0]
-            if not candidate.content or not candidate.content.parts:
-                raise RuntimeError("Gemini returned empty response")
-            text = candidate.content.parts[0].text
+            text = (
+                response.candidates[0]
+                .content.parts[0]
+                .text.strip()
+            )
+        except (AttributeError, IndexError):
+            raise RuntimeError("Gemini returned malformed response")
         
         if not text:
             raise RuntimeError("Gemini returned empty response")
         
-        return text.strip()
+        return text

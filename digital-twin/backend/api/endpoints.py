@@ -276,6 +276,12 @@ async def nl_to_toon_endpoint(request: NLToToonRequest):
             status_code=400,
             detail=str(e),
         )
+    except RuntimeError as e:
+        # Surface Gemini / NLP engine failures without leaking internals
+        raise HTTPException(
+            status_code=502,
+            detail=f"NLP engine failure: {str(e)}",
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,
