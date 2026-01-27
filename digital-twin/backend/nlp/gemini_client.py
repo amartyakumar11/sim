@@ -52,15 +52,19 @@ class GeminiClient:
         Raises:
             RuntimeError: If Gemini returns empty or malformed response
         """
-        response = self.client.models.generate_content(
-            model="gemini-pro",
-            contents=prompt,
-            config={
-                "temperature": 0,
-                "top_p": 1,
-                "top_k": 1,
-            },
-        )
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=prompt,
+                config={
+                    "temperature": 0,
+                    "top_p": 1,
+                    "top_k": 1,
+                },
+            )
+        except Exception as e:
+            # Normalize all Gemini client errors into a single RuntimeError
+            raise RuntimeError("Gemini request failed") from e
         
         if not response or not getattr(response, "candidates", None):
             raise RuntimeError("Gemini returned no candidates")
