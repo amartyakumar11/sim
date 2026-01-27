@@ -16,6 +16,36 @@ from tasks import run_simulation_task, get_task_status, get_task_result, create_
 
 router = APIRouter(prefix="/api", tags=["simulation"])
 
+def get_station_catalog(city: str) -> list[str]:
+    """
+    Get list of valid station IDs for a city.
+    
+    Args:
+        city: City name
+        
+    Returns:
+        List of station ID strings
+        
+    TODO: Replace with database lookup or city config lookup
+    """
+    # Default station catalog - can be extended with database lookup
+    # For now, return common station IDs based on city
+    default_stations = [
+        "CP_01", "CP_02", "CP_03",
+        "DWK_01", "DWK_02", "DWK_03",
+        "INA_01", "INA_02", "INA_03",
+        "st_001", "st_002", "st_003"
+    ]
+    
+    # City-specific catalogs can be added here
+    city_catalogs = {
+        "Bangalore": ["CP_01", "DWK_03", "INA_02", "MG_01", "HSR_01"],
+        "Delhi": ["CP_01", "DWK_01", "INA_01", "GK_01"],
+        "Mumbai": ["CP_01", "DWK_02", "INA_03", "BKC_01"],
+    }
+    
+    return city_catalogs.get(city, default_stations)
+
 def validate_city_config(city_config: Dict[str, Any]) -> None:
     """Validate city configuration structure"""
     if not isinstance(city_config, dict):
@@ -172,7 +202,7 @@ async def run_simulation_endpoint(request: SimulationRequest):
             )
         
         # Import simulation function
-        from backend.simulation.main import run_simulation
+        from simulation.main import run_simulation
         
         # Prepare config with mode
         config = request.config.copy()
@@ -207,7 +237,7 @@ async def run_scenarios_endpoint(request: ScenarioComparisonRequest):
             )
         
         # Import simulation function
-        from backend.simulation.main import run_scenarios
+        from simulation.main import run_scenarios
         
         # Run scenarios
         result = run_scenarios(
@@ -224,6 +254,77 @@ async def run_scenarios_endpoint(request: ScenarioComparisonRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Scenario comparison failed: {str(e)}"
+        )
+
+@router.post("/nl-to-toon")
+async def nl_to_toon_endpoint(payload: dict):
+    """
+    Translate natural language scenario to TOON DSL configuration.
+    
+    Stateless endpoint - no simulation triggering, no state storage.
+    
+    Request body:
+        {
+            "text": "Add 2 chargers at CP_01",
+            "city": "Bangalore"  # optional, defaults to "Bangalore"
+        }
+    
+    Returns:
+        {
+            "toon": {
+                "base": {...},
+                "stations": {...},
+                "demand": {...},
+                "constraints": {...}
+            }
+        }
+    """
+    try:
+        text = payload.get("text")
+        city = payload.get("city", "Bangalore")
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Missing 'text' field in request body")
+        
+        # Import translator (lazy import to avoid circular dependencies)
+        from nlp.nl_to_toon import translate_nl_to_toon
+        from nlp.toon_parser import ToonParseError
+        
+        # Get station catalog for city
+        station_catalog = get_station_catalog(city)
+        
+        # Translate natural language to TOON
+        scenario_config = translate_nl_to_toon(text, station_catalog, city)
+        
+        return {
+            "toon": scenario_config
+        }
+        
+    except ToonParseError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"TOON parsing error: {str(e)}"
+        )
+    except RuntimeError as e:
+        # Gemini API errors
+        if "GEMINI_API_KEY" in str(e):
+            raise HTTPException(
+                status_code=500,
+                detail="Gemini API key not configured"
+            )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Translation failed: {str(e)}"
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Validation error: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
         )
 
 @router.get("/health")
