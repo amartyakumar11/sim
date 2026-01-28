@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { 
   Card, 
@@ -37,6 +37,18 @@ import { simulationAPI } from '../services/api'
 
 const { Title, Text, Paragraph } = Typography
 
+function asNumber(value) {
+  if (value === null || value === undefined) return null
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+function formatFixed(value, digits) {
+  const n = asNumber(value)
+  if (n === null) return '0'
+  return n.toFixed(digits)
+}
+
 // Flat station table data (no hooks; safe across renders)
 const STATION_DATA = [
   { key: 'st_1', name: 'Station 1', swaps: 45, lost: 5, state: 'active' },
@@ -63,10 +75,17 @@ function ResultsDashboard() {
   const [showDataLayer, setShowDataLayer] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [timeseriesData, setTimeseriesData] = useState([])
+  const retryTimerRef = useRef(null)
+  const aliveRef = useRef(true)
 
   useEffect(() => {
-    if (runIdFromParams) {
-      fetchResults()
+    aliveRef.current = true
+    return () => {
+      aliveRef.current = false
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current)
+        retryTimerRef.current = null
+      }
     }
   }, [runIdFromParams])
 
@@ -84,24 +103,35 @@ function ResultsDashboard() {
     setTimeseriesData(generated)
   }, [showDataLayer, timeseriesData.length])
 
-  const fetchResults = async () => {
+  const fetchResults = useCallback(async () => {
+    if (!runIdFromParams) return
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
+    }
     setLoading(true)
     setError(null)
     try {
       const data = await simulationAPI.getJobResult(runIdFromParams)
+      if (!aliveRef.current) return
       setResult(data)
     } catch (err) {
+      if (!aliveRef.current) return
       if (err.response?.status === 202) {
         setError('Simulation is still running. Please wait...')
         // Retry after 3 seconds
-        setTimeout(fetchResults, 3000)
+        retryTimerRef.current = setTimeout(fetchResults, 3000)
       } else {
         setError(err.response?.data?.detail || err.message)
       }
     } finally {
-      setLoading(false)
+      if (aliveRef.current) setLoading(false)
     }
-  }
+  }, [runIdFromParams])
+
+  useEffect(() => {
+    if (runIdFromParams) fetchResults()
+  }, [runIdFromParams, fetchResults])
 
   if (!runIdFromParams) {
     return (
@@ -142,14 +172,20 @@ function ResultsDashboard() {
   // Defensive: some runs may return partial/older result objects
   const summary = result?.summary || {}
   const artifacts = result?.artifacts || {}
+  const runIdShort = useMemo(() => {
+    const s = String(runIdFromParams || '')
+    return s.length > 10 ? `${s.substring(0, 8)}…` : s
+  }, [runIdFromParams])
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       <Card style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <Title level={2} style={{ margin: 0 }}>📈 Simulation Results</Title>
-            <Text type="secondary">Run ID: <Text code>{runIdFromParams.substring(0, 8)}...</Text></Text>
+            <Title level={2} style={{ margin: 0 }}>Simulation Results</Title>
+            <Text type="secondary">
+              Run ID: <Text code>{runIdShort}</Text>
+            </Text>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Button
@@ -170,10 +206,10 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="Avg Wait Time"
-              value={summary.avg_wait_time?.toFixed(2) || 0}
+              value={formatFixed(summary.avg_wait_time, 2)}
               suffix="min"
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: (summary.avg_wait_time ?? 0) > 10 ? '#cf1322' : '#3f8600' }}
+              valueStyle={{ color: (asNumber(summary.avg_wait_time) ?? 0) > 10 ? '#cf1322' : '#3f8600' }}
             />
           </Card>
         </Col>
@@ -181,7 +217,7 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="Lost Swaps"
-              value={summary.lost_swaps || 0}
+              value={asNumber(summary.lost_swaps) ?? 0}
               prefix={<CloseCircleOutlined />}
               valueStyle={{ color: '#cf1322' }}
             />
@@ -191,7 +227,7 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="Charger Utilization"
-              value={(((summary.charger_utilization ?? 0) * 100)).toFixed(1)}
+              value={((asNumber(summary.charger_utilization) ?? 0) * 100).toFixed(1)}
               suffix="%"
               prefix={<ThunderboltOutlined />}
               valueStyle={{ color: '#1890ff' }}
@@ -202,7 +238,7 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="City Throughput"
-              value={summary.city_throughput || 0}
+              value={asNumber(summary.city_throughput) ?? 0}
               suffix="swaps"
               prefix={<RiseOutlined />}
               valueStyle={{ color: '#3f8600' }}
@@ -216,7 +252,7 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="Idle Inventory"
-              value={summary.idle_inventory?.toFixed(1) || 0}
+              value={formatFixed(summary.idle_inventory, 1)}
               suffix="%"
             />
           </Card>
@@ -225,7 +261,7 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="Cost Impact"
-              value={summary.total_cost_impact?.toFixed(2) || 0}
+              value={formatFixed(summary.total_cost_impact, 2)}
               prefix={<DollarOutlined />}
             />
           </Card>
@@ -234,9 +270,9 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="ROI"
-              value={(((summary.roi ?? 0) * 100)).toFixed(1)}
+              value={((asNumber(summary.roi) ?? 0) * 100).toFixed(1)}
               suffix="%"
-              valueStyle={{ color: (summary.roi ?? 0) > 0.2 ? '#3f8600' : '#faad14' }}
+              valueStyle={{ color: (asNumber(summary.roi) ?? 0) > 0.2 ? '#3f8600' : '#faad14' }}
             />
           </Card>
         </Col>
@@ -244,7 +280,7 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="Events Logged"
-              value={result.events_count || 0}
+              value={asNumber(result.events_count) ?? 0}
             />
           </Card>
         </Col>
@@ -336,7 +372,7 @@ function ResultsDashboard() {
 
       {/* Artifacts Information */}
       <Card style={{ marginTop: 24 }}>
-        <Title level={4}>📁 Simulation Artifacts</Title>
+        <Title level={4}>Simulation Artifacts</Title>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={8}>
             <Text strong>Events:</Text> <Text code>{artifacts.events || '(not available)'}</Text>

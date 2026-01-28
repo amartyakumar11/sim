@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { memo, useMemo, useState, useEffect } from 'react'
 
 // Static mock stations with live state (simulating existing simulation output)
 const STATIONS = [
@@ -27,16 +27,215 @@ function getStationState(queueLength, activeChargers, capacity) {
   return 'idle'
 }
 
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const onChange = () => setReduced(!!mq.matches)
+    onChange()
+
+    // Safari fallback: addListener/removeListener
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', onChange)
+      return () => mq.removeEventListener('change', onChange)
+    }
+    mq.addListener(onChange)
+    return () => mq.removeListener(onChange)
+  }, [])
+
+  return reduced
+}
+
+const PAGE_WRAP_STYLE = { maxWidth: 1200, margin: '0 auto', padding: '20px' }
+const HEADER_STYLE = { marginBottom: 24 }
+const TITLE_STYLE = { fontSize: 28, margin: 0, color: '#000' }
+const SUBTITLE_STYLE = { margin: '8px 0 0', color: '#555', maxWidth: 720 }
+
+const CANVAS_STYLE = {
+  position: 'relative',
+  width: '100%',
+  maxWidth: 1100,
+  aspectRatio: '16 / 9',
+  borderRadius: 16,
+  border: '1px solid #d4d4d8',
+  overflow: 'hidden',
+  background:
+    'radial-gradient(circle at top left, #e5f2ff 0, #f4f4f5 40%, #e4f5f0 75%, #e4e4f5 100%)',
+  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
+}
+
+const GRID_STYLE = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(to right, rgba(148,163,184,0.12) 1px, transparent 1px),' +
+    'linear-gradient(to bottom, rgba(148,163,184,0.12) 1px, transparent 1px)',
+  backgroundSize: '40px 40px',
+  opacity: 0.7,
+}
+
+const StationNode = memo(function StationNode({ station, index }) {
+  const tier = getCapacityTier(station.capacity)
+  const baseSize = tier === 'large' ? 64 : tier === 'medium' ? 48 : 36
+  const stationState = getStationState(station.queueLength, station.activeChargers, station.capacity)
+  const isBusy = stationState === 'busy'
+  const isActive = stationState === 'active'
+
+  // Visual density: busy = more elements, idle = minimal
+  const chargeIndicatorCount = Math.min(station.activeChargers, 4) // Max 4 indicators for clarity
+  const queueBarHeight = Math.min(station.queueLength * 6, 30) // Max 30px height
+
+  return (
+    <div
+      className="sim-station"
+      data-state={stationState}
+      style={{
+        position: 'absolute',
+        left: `${station.x}%`,
+        top: `${station.y}%`,
+        transform: 'translate(-50%, -50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        animationName: 'sim-station-entry',
+        animationDuration: '220ms',
+        animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+        animationFillMode: 'backwards',
+        animationDelay: `${40 * index}ms`,
+        transition: 'transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+      }}
+    >
+      {/* Queue visualization: vertical bar below station */}
+      {station.queueLength > 0 && (
+        <div
+          className="queue-bar"
+          style={{
+            width: 4,
+            height: queueBarHeight,
+            backgroundColor: isBusy ? '#dc2626' : '#f59e0b',
+            borderRadius: '2px 2px 0 0',
+            marginBottom: 4,
+            transition:
+              'height 240ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+            boxShadow: isBusy ? '0 2px 8px rgba(220, 38, 38, 0.4)' : '0 2px 6px rgba(245, 158, 11, 0.3)',
+          }}
+        />
+      )}
+
+      {/* Station disc with charging activity indicators */}
+      <div
+        className="station-disc"
+        style={{
+          width: baseSize,
+          height: baseSize,
+          borderRadius: '999px',
+          background:
+            tier === 'large'
+              ? 'linear-gradient(135deg, #047857, #22c55e)'
+              : tier === 'medium'
+              ? 'linear-gradient(135deg, #0369a1, #38bdf8)'
+              : 'linear-gradient(135deg, #4b5563, #9ca3af)',
+          boxShadow: isBusy
+            ? '0 8px 24px rgba(15, 23, 42, 0.5), 0 0 0 2px rgba(220, 38, 38, 0.3)'
+            : isActive
+            ? '0 8px 20px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(59, 130, 246, 0.2)'
+            : '0 8px 18px rgba(15, 23, 42, 0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          transition: 'box-shadow 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+      >
+        {/* Charging activity indicators: small dots around perimeter */}
+        {chargeIndicatorCount > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '999px',
+            }}
+          >
+            {Array.from({ length: chargeIndicatorCount }).map((_, i) => {
+              const angle = (i / chargeIndicatorCount) * Math.PI * 2
+              const radius = baseSize * 0.42
+              const x = Math.cos(angle) * radius
+              const y = Math.sin(angle) * radius
+
+              return (
+                <div
+                  key={i}
+                  className="charge-indicator"
+                  style={{
+                    position: 'absolute',
+                    left: `50%`,
+                    top: `50%`,
+                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                    width: 6,
+                    height: 6,
+                    borderRadius: '999px',
+                    backgroundColor: '#fbbf24',
+                    boxShadow: '0 0 4px rgba(251, 191, 36, 0.8)',
+                    opacity: isBusy ? 1 : 0.7,
+                    transition: 'opacity 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+                  }}
+                />
+              )
+            })}
+          </div>
+        )}
+
+        {/* Capacity implied by inner rings, not explicit numbers */}
+        <div
+          style={{
+            width: baseSize * 0.55,
+            height: baseSize * 0.55,
+            borderRadius: '999px',
+            border: tier === 'large' ? '3px solid rgba(248, 250, 252, 0.9)' : '2px solid rgba(248, 250, 252, 0.9)',
+            boxShadow: '0 0 0 2px rgba(15, 23, 42, 0.25)',
+          }}
+        />
+      </div>
+
+      {/* Station label with state indicator */}
+      <div
+        style={{
+          marginTop: 6,
+          padding: '2px 8px',
+          borderRadius: 999,
+          backgroundColor: isBusy ? 'rgba(220, 38, 38, 0.9)' : isActive ? 'rgba(59, 130, 246, 0.9)' : 'rgba(15, 23, 42, 0.85)',
+          color: '#f9fafb',
+          fontSize: 11,
+          letterSpacing: 0.2,
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
+          transition: 'background-color 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }}
+      >
+        {station.label}
+      </div>
+    </div>
+  )
+})
+
 function SimulationScene() {
   // Simulate state changes (using existing simulation output structure)
   const [stationStates, setStationStates] = useState(STATIONS)
   const [overlaysVisible, setOverlaysVisible] = useState(true)
+  const [liveDemoEnabled, setLiveDemoEnabled] = useState(false)
+  const prefersReducedMotion = usePrefersReducedMotion()
 
-  // Periodic state updates to simulate live simulation (no API calls, just visual updates)
+  // Periodic state updates (demo only). Disabled by default to avoid unnecessary re-renders.
   useEffect(() => {
+    if (!liveDemoEnabled) return
+    if (prefersReducedMotion) return
+
     const interval = setInterval(() => {
-      setStationStates(prev =>
-        prev.map(station => {
+      setStationStates(prev => {
+        let changed = false
+        const next = prev.map(station => {
           // Simulate realistic state transitions
           const queueChange = Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0
           const chargerChange = Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0
@@ -45,21 +244,36 @@ function SimulationScene() {
           const newActiveChargers = Math.max(0, Math.min(station.capacity, station.activeChargers + chargerChange))
           const newState = getStationState(newQueueLength, newActiveChargers, station.capacity)
 
-          return {
-            ...station,
-            queueLength: newQueueLength,
-            activeChargers: newActiveChargers,
-            state: newState,
+          if (
+            newQueueLength !== station.queueLength ||
+            newActiveChargers !== station.activeChargers ||
+            newState !== station.state
+          ) {
+            changed = true
+            return {
+              ...station,
+              queueLength: newQueueLength,
+              activeChargers: newActiveChargers,
+              state: newState,
+            }
           }
-        }),
-      )
-    }, 2000) // Update every 2 seconds
+          return station
+        })
+
+        return changed ? next : prev
+      })
+    }, 2000) // Update every 2 seconds (demo cadence)
 
     return () => clearInterval(interval)
-  }, [])
+  }, [liveDemoEnabled, prefersReducedMotion])
+
+  // Enforce reduced-motion: never allow continuous demo updates.
+  useEffect(() => {
+    if (prefersReducedMotion && liveDemoEnabled) setLiveDemoEnabled(false)
+  }, [prefersReducedMotion, liveDemoEnabled])
 
   // Derived observer signals (no API calls; derived from existing station state)
-  const derived = (() => {
+  const derived = useMemo(() => {
     const counts = { idle: 0, active: 0, busy: 0, queued: 0 }
     let hotspot = null // station with highest queue
     for (const s of stationStates) {
@@ -80,46 +294,27 @@ function SimulationScene() {
     const hotspotLabel = hotspot && hotspot.queueLength > 0 ? hotspot.label : 'None'
 
     return { counts, pressure, hotspotLabel }
-  })()
+  }, [stationStates])
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px' }}>
+    <div style={PAGE_WRAP_STYLE}>
       {/* Scene header */}
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28, margin: 0, color: '#000' }}>City Simulation Scene</h1>
-        <p style={{ margin: '8px 0 0', color: '#555', maxWidth: 640 }}>
-          Live view of battery swap stations. Queue length, charging activity, and station state are visualized
-          without numbers. Busy stations appear dense; idle stations appear calm.
+      <div style={HEADER_STYLE}>
+        <h1 style={TITLE_STYLE}>City Simulation Scene</h1>
+        <p style={SUBTITLE_STYLE}>
+          Queue length, charging activity, and station state are visualized without numbers. Busy stations appear dense;
+          idle stations appear calm.
         </p>
       </div>
 
       {/* City canvas */}
       <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxWidth: 1100,
-          aspectRatio: '16 / 9',
-          borderRadius: 16,
-          border: '1px solid #d4d4d8',
-          overflow: 'hidden',
-          background:
-            'radial-gradient(circle at top left, #e5f2ff 0, #f4f4f5 40%, #e4f5f0 75%, #e4e4f5 100%)',
-          boxShadow: '0 10px 30px rgba(15, 23, 42, 0.08)',
-        }}
+        style={CANVAS_STYLE}
       >
         {/* Subtle grid to imply city blocks (no maps, no metrics) */}
         <div
           aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage:
-              'linear-gradient(to right, rgba(148,163,184,0.12) 1px, transparent 1px),' +
-              'linear-gradient(to bottom, rgba(148,163,184,0.12) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-            opacity: 0.7,
-          }}
+          style={GRID_STYLE}
         />
 
         {/* Observer overlays (glassmorphism allowed here) */}
@@ -235,161 +430,38 @@ function SimulationScene() {
           {overlaysVisible ? 'Hide overlays' : 'Show overlays'}
         </button>
 
+        {/* Demo control (flat; avoids glass stacking) */}
+        <button
+          type="button"
+          onClick={() => setLiveDemoEnabled(v => !v)}
+          disabled={prefersReducedMotion}
+          style={{
+            position: 'absolute',
+            left: 16,
+            top: 16,
+            padding: '10px 12px',
+            borderRadius: 12,
+            backgroundColor: prefersReducedMotion ? 'rgba(15, 23, 42, 0.55)' : '#0f172a',
+            color: 'rgba(248, 250, 252, 0.95)',
+            border: '1px solid rgba(15, 23, 42, 0.18)',
+            boxShadow: '0 10px 26px rgba(2, 6, 23, 0.18)',
+            fontSize: 12,
+            letterSpacing: 0.2,
+            cursor: prefersReducedMotion ? 'not-allowed' : 'pointer',
+            opacity: prefersReducedMotion ? 0.75 : 1,
+          }}
+        >
+          {prefersReducedMotion
+            ? 'Demo updates disabled (reduced motion)'
+            : liveDemoEnabled
+            ? 'Pause demo updates'
+            : 'Play demo updates'}
+        </button>
+
         {/* Station placeholders with queue and state visualization */}
-        {stationStates.map((station, index) => {
-          const tier = getCapacityTier(station.capacity)
-          const baseSize = tier === 'large' ? 64 : tier === 'medium' ? 48 : 36
-          const stationState = getStationState(station.queueLength, station.activeChargers, station.capacity)
-          const isBusy = stationState === 'busy'
-          const isActive = stationState === 'active'
-          const isIdle = stationState === 'idle'
-
-          // Visual density: busy = more elements, idle = minimal
-          const chargeIndicatorCount = Math.min(station.activeChargers, 4) // Max 4 indicators for clarity
-          const queueBarHeight = Math.min(station.queueLength * 6, 30) // Max 30px height
-
-          return (
-            <div
-              key={station.id}
-              className="sim-station"
-              data-state={stationState}
-              style={{
-                position: 'absolute',
-                left: `${station.x}%`,
-                top: `${station.y}%`,
-                transform: 'translate(-50%, -50%)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                animationName: 'sim-station-entry',
-                animationDuration: '220ms',
-                animationTimingFunction: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
-                animationFillMode: 'backwards',
-                animationDelay: `${40 * index}ms`,
-                transition: 'all 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-              }}
-            >
-              {/* Queue visualization: vertical bar below station */}
-              {station.queueLength > 0 && (
-                <div
-                  className="queue-bar"
-                  style={{
-                    width: 4,
-                    height: queueBarHeight,
-                    backgroundColor: isBusy ? '#dc2626' : '#f59e0b',
-                    borderRadius: '2px 2px 0 0',
-                    marginBottom: 4,
-                    transition:
-                      'height 240ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-                    boxShadow: isBusy
-                      ? '0 2px 8px rgba(220, 38, 38, 0.4)'
-                      : '0 2px 6px rgba(245, 158, 11, 0.3)',
-                  }}
-                />
-              )}
-
-              {/* Station disc with charging activity indicators */}
-              <div
-                className="station-disc"
-                style={{
-                  width: baseSize,
-                  height: baseSize,
-                  borderRadius: '999px',
-                  background:
-                    tier === 'large'
-                      ? 'linear-gradient(135deg, #047857, #22c55e)'
-                      : tier === 'medium'
-                      ? 'linear-gradient(135deg, #0369a1, #38bdf8)'
-                      : 'linear-gradient(135deg, #4b5563, #9ca3af)',
-                  boxShadow: isBusy
-                    ? '0 8px 24px rgba(15, 23, 42, 0.5), 0 0 0 2px rgba(220, 38, 38, 0.3)'
-                    : isActive
-                    ? '0 8px 20px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(59, 130, 246, 0.2)'
-                    : '0 8px 18px rgba(15, 23, 42, 0.35)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  transition: 'box-shadow 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-                }}
-              >
-                {/* Charging activity indicators: small dots around perimeter */}
-                {chargeIndicatorCount > 0 && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      borderRadius: '999px',
-                    }}
-                  >
-                    {Array.from({ length: chargeIndicatorCount }).map((_, i) => {
-                      const angle = (i / chargeIndicatorCount) * Math.PI * 2
-                      const radius = baseSize * 0.42
-                      const x = Math.cos(angle) * radius
-                      const y = Math.sin(angle) * radius
-
-                      return (
-                        <div
-                          key={i}
-                          className="charge-indicator"
-                          style={{
-                            position: 'absolute',
-                            left: `50%`,
-                            top: `50%`,
-                            transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
-                            width: 6,
-                            height: 6,
-                            borderRadius: '999px',
-                            backgroundColor: '#fbbf24',
-                            boxShadow: '0 0 4px rgba(251, 191, 36, 0.8)',
-                            opacity: isBusy ? 1 : 0.7,
-                            transition: 'opacity 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-                          }}
-                        />
-                      )
-                    })}
-                  </div>
-                )}
-
-                {/* Capacity implied by inner rings, not explicit numbers */}
-                <div
-                  style={{
-                    width: baseSize * 0.55,
-                    height: baseSize * 0.55,
-                    borderRadius: '999px',
-                    border:
-                      tier === 'large'
-                        ? '3px solid rgba(248, 250, 252, 0.9)'
-                        : '2px solid rgba(248, 250, 252, 0.9)',
-                    boxShadow: '0 0 0 2px rgba(15, 23, 42, 0.25)',
-                  }}
-                />
-              </div>
-
-              {/* Station label with state indicator */}
-              <div
-                style={{
-                  marginTop: 6,
-                  padding: '2px 8px',
-                  borderRadius: 999,
-                  backgroundColor: isBusy
-                    ? 'rgba(220, 38, 38, 0.9)'
-                    : isActive
-                    ? 'rgba(59, 130, 246, 0.9)'
-                    : 'rgba(15, 23, 42, 0.85)',
-                  color: '#f9fafb',
-                  fontSize: 11,
-                  letterSpacing: 0.2,
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  transition: 'background-color 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-                }}
-              >
-                {station.label}
-              </div>
-            </div>
-          )
-        })}
+        {stationStates.map((station, index) => (
+          <StationNode key={station.id} station={station} index={index} />
+        ))}
 
         {/* Legend strip: capacity and state indicators */}
         <div
@@ -555,11 +627,11 @@ function SimulationScene() {
           @keyframes charge-pulse {
             from {
               opacity: 0;
-              transform: translate(calc(-50% + var(--x, 0px)), calc(-50% + var(--y, 0px))) scale(0);
+              transform: scale(0);
             }
             to {
               opacity: 1;
-              transform: translate(calc(-50% + var(--x, 0px)), calc(-50% + var(--y, 0px))) scale(1);
+              transform: scale(1);
             }
           }
 
