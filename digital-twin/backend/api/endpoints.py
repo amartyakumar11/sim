@@ -8,11 +8,46 @@ from .models import (
     ScenarioRequest, 
     ScenarioResponse, 
     JobStatusResponse, 
-    SimulationResult
+    SimulationResult,
+    SimulationRequest,
+    ScenarioComparisonRequest,
+    NLToToonRequest,
 )
 from tasks import run_simulation_task, get_task_status, get_task_result, create_job_status
+from nlp.nl_to_toon import translate_nl_to_toon
+from nlp.toon_parser import ToonParseError
 
 router = APIRouter(prefix="/api", tags=["simulation"])
+
+def get_station_catalog(city: str) -> list[str]:
+    """
+    Get list of valid station IDs for a city.
+    
+    Args:
+        city: City name
+        
+    Returns:
+        List of station ID strings
+        
+    TODO: Replace with database lookup or city config lookup
+    """
+    # Default station catalog - can be extended with database lookup
+    # For now, return common station IDs based on city
+    default_stations = [
+        "CP_01", "CP_02", "CP_03",
+        "DWK_01", "DWK_02", "DWK_03",
+        "INA_01", "INA_02", "INA_03",
+        "st_001", "st_002", "st_003"
+    ]
+    
+    # City-specific catalogs can be added here
+    city_catalogs = {
+        "Bangalore": ["CP_01", "DWK_03", "INA_02", "MG_01", "HSR_01"],
+        "Delhi": ["CP_01", "DWK_01", "INA_01", "GK_01"],
+        "Mumbai": ["CP_01", "DWK_02", "INA_03", "BKC_01"],
+    }
+    
+    return city_catalogs.get(city, default_stations)
 
 def validate_city_config(city_config: Dict[str, Any]) -> None:
     """Validate city configuration structure"""
@@ -136,14 +171,6 @@ async def get_job_result_endpoint(run_id: str):
             raise HTTPException(status_code=500, detail=f"Error retrieving results: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-        if result["status"] != "completed":
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Job {run_id} is not completed. Status: {result['status']}"
-            )
-        return SimulationResult(**result)
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
 
 @router.get("/jobs")
 async def list_jobs():
@@ -160,6 +187,109 @@ async def cancel_job(run_id: str):
     """
     # TODO: Implement job cancellation
     return {"message": f"Job {run_id} cancellation not yet implemented"}
+
+@router.post("/run-simulation")
+async def run_simulation_endpoint(request: SimulationRequest):
+    """
+    Run a single simulation with specified mode.
+    
+    Supports 'fake' mode (fast, UI-safe) and 'real' mode (full SimPy simulation).
+    """
+    try:
+        # Validate mode
+        mode = request.mode or "fake"
+        if mode not in ("fake", "real"):
+            raise HTTPException(
+                status_code=400,
+                detail="mode must be 'fake' or 'real'"
+            )
+        
+        # Import simulation function
+        from simulation.main import run_simulation
+        
+        # Prepare config with mode
+        config = request.config.copy()
+        config["mode"] = mode
+        
+        # Run simulation
+        result = run_simulation(config, mode=mode)
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Simulation failed: {str(e)}"
+        )
+
+@router.post("/run-scenarios")
+async def run_scenarios_endpoint(request: ScenarioComparisonRequest):
+    """
+    Run baseline and scenario simulations with comparison and ranking.
+    
+    Supports 'fake' mode (fast, UI-safe) and 'real' mode (full SimPy simulation).
+    """
+    try:
+        # Validate mode
+        mode = request.mode or "fake"
+        if mode not in ("fake", "real"):
+            raise HTTPException(
+                status_code=400,
+                detail="mode must be 'fake' or 'real'"
+            )
+        
+        # Import simulation function
+        from simulation.main import run_scenarios
+        
+        # Run scenarios
+        result = run_scenarios(
+            base_config=request.base_config,
+            scenario_configs=request.scenarios,
+            weight_config=request.weights,
+            mode=mode
+        )
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Scenario comparison failed: {str(e)}"
+        )
+
+@router.post("/nl-to-toon")
+async def nl_to_toon_endpoint(request: NLToToonRequest):
+    """
+    Translate natural language scenario to TOON DSL configuration.
+    
+    Stateless endpoint - no simulation triggering, no state storage.
+    """
+    try:
+        city = request.city or "Bangalore"
+        station_catalog = get_station_catalog(city)
+        toon, raw_toon = translate_nl_to_toon(request.text, station_catalog, city)
+        out = {"toon": toon}
+        if not toon.get("stations"):
+            out["raw_toon"] = raw_toon
+        return out
+    except ToonParseError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
+    except RuntimeError as e:
+        # Surface Gemini / NLP engine failures without leaking internals
+        raise HTTPException(
+            status_code=502,
+            detail=f"NLP engine failure: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}",
+        )
 
 @router.get("/health")
 async def health_check():

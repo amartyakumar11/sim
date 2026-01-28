@@ -137,7 +137,8 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
         _store_job_status(run_id, "running", "Starting simulation engine", 0.1)
         
         # Call simulation engine (black box as per integration contract)
-        simulation_result = run_simulation(runtime_config)
+        mode = scenario_data.get("mode", "fake")
+        simulation_result = run_simulation(runtime_config, mode=mode)
         
         # Update progress
         _store_job_status(run_id, "running", "Processing results", 0.9)
