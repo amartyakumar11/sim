@@ -22,12 +22,6 @@ from google import genai
 
 logger = logging.getLogger(__name__)
 
-
-# Fail fast if API key is missing
-if not os.getenv("GEMINI_API_KEY"):
-    raise RuntimeError("GEMINI_API_KEY is not set in environment")
-
-
 class GeminiClient:
     """
     Simple Gemini API client for text-to-text translation.
@@ -41,7 +35,9 @@ class GeminiClient:
         """
         Initialize Gemini client with API key from environment.
         """
-        api_key = os.environ["GEMINI_API_KEY"]
+        api_key = (os.environ.get("GEMINI_API_KEY") or "").strip()
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY is not set in environment")
         self.client = genai.Client(api_key=api_key)
         self.model = (os.environ.get("GEMINI_MODEL") or "").strip() or self.DEFAULT_MODEL
     
