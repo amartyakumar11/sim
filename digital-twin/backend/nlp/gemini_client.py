@@ -16,8 +16,11 @@ Implementation rules:
 - Hard-fail on empty or malformed response
 """
 
+import logging
 import os
 from google import genai
+
+logger = logging.getLogger(__name__)
 
 
 # Fail fast if API key is missing
@@ -32,12 +35,15 @@ class GeminiClient:
     Stateless - no memory, no retries, no streaming.
     """
     
+    DEFAULT_MODEL = "gemini-2.5-flash"  # free-tier quota; override with GEMINI_MODEL
+
     def __init__(self):
         """
         Initialize Gemini client with API key from environment.
         """
         api_key = os.environ["GEMINI_API_KEY"]
         self.client = genai.Client(api_key=api_key)
+        self.model = (os.environ.get("GEMINI_MODEL") or "").strip() or self.DEFAULT_MODEL
     
     def generate_toon(self, prompt: str) -> str:
         """
@@ -54,7 +60,7 @@ class GeminiClient:
         """
         try:
             response = self.client.models.generate_content(
-                model="gemini-1.5-flash",
+                model=self.model,
                 contents=prompt,
                 config={
                     "temperature": 0,
@@ -63,7 +69,7 @@ class GeminiClient:
                 },
             )
         except Exception as e:
-            # Normalize all Gemini client errors into a single RuntimeError
+            logger.warning("Gemini request failed: %s", e, exc_info=True)
             raise RuntimeError("Gemini request failed") from e
         
         if not response or not getattr(response, "candidates", None):

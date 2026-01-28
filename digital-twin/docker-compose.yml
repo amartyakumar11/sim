@@ -45,6 +45,7 @@ services:
       - MAPBOX_TOKEN=${MAPBOX_TOKEN}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-}
     volumes:
       - ./backend:/app
       - ./data:/app/data
@@ -68,6 +69,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-}
     volumes:
       - ./backend:/app
       - ./data:/app/data
