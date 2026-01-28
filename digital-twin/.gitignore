@@ -7,3 +7,4 @@ dist/
 .next/
 backend/simulation/_verification.py
 skills/
+data/results/
