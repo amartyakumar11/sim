@@ -10,7 +10,10 @@ import {
   Typography,
   Divider,
   Tag,
-  Empty
+  Empty,
+  Button,
+  Drawer,
+  Table,
 } from 'antd'
 import { 
   ClockCircleOutlined,
@@ -23,8 +26,6 @@ import {
 import { 
   LineChart, 
   Line, 
-  BarChart, 
-  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -36,6 +37,21 @@ import { simulationAPI } from '../services/api'
 
 const { Title, Text, Paragraph } = Typography
 
+// Flat station table data (no hooks; safe across renders)
+const STATION_DATA = [
+  { key: 'st_1', name: 'Station 1', swaps: 45, lost: 5, state: 'active' },
+  { key: 'st_2', name: 'Station 2', swaps: 38, lost: 3, state: 'idle' },
+  { key: 'st_3', name: 'Station 3', swaps: 52, lost: 7, state: 'busy' },
+  { key: 'st_4', name: 'Station 4', swaps: 41, lost: 4, state: 'active' },
+]
+
+const STATION_COLUMNS = [
+  { title: 'Station', dataIndex: 'name', key: 'name' },
+  { title: 'Swaps', dataIndex: 'swaps', key: 'swaps' },
+  { title: 'Lost', dataIndex: 'lost', key: 'lost' },
+  { title: 'State', dataIndex: 'state', key: 'state' },
+]
+
 function ResultsDashboard() {
   const { runId } = useParams()
   const [searchParams] = useSearchParams()
@@ -44,12 +60,29 @@ function ResultsDashboard() {
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [showDataLayer, setShowDataLayer] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [timeseriesData, setTimeseriesData] = useState([])
 
   useEffect(() => {
     if (runIdFromParams) {
       fetchResults()
     }
   }, [runIdFromParams])
+
+  // Generate static mock timeseries only when user reveals data layer.
+  // (No live updates; no continuous visual animation.)
+  useEffect(() => {
+    if (!showDataLayer) return
+    if (timeseriesData.length > 0) return
+
+    const generated = Array.from({ length: 20 }, (_, i) => ({
+      time: i * 3,
+      wait_time: 5 + Math.random() * 10,
+      utilization: 0.4 + Math.random() * 0.3,
+    }))
+    setTimeseriesData(generated)
+  }, [showDataLayer, timeseriesData.length])
 
   const fetchResults = async () => {
     setLoading(true)
@@ -106,21 +139,9 @@ function ResultsDashboard() {
     return null
   }
 
-  const { summary } = result
-
-  // Generate mock timeseries data for charts (replace with real data when available)
-  const timeseriesData = Array.from({ length: 20 }, (_, i) => ({
-    time: i * 3,
-    wait_time: 5 + Math.random() * 10,
-    utilization: 0.4 + Math.random() * 0.3
-  }))
-
-  const stationData = [
-    { name: 'Station 1', swaps: 45, lost: 5 },
-    { name: 'Station 2', swaps: 38, lost: 3 },
-    { name: 'Station 3', swaps: 52, lost: 7 },
-    { name: 'Station 4', swaps: 41, lost: 4 }
-  ]
+  // Defensive: some runs may return partial/older result objects
+  const summary = result?.summary || {}
+  const artifacts = result?.artifacts || {}
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
@@ -130,7 +151,16 @@ function ResultsDashboard() {
             <Title level={2} style={{ margin: 0 }}>📈 Simulation Results</Title>
             <Text type="secondary">Run ID: <Text code>{runIdFromParams.substring(0, 8)}...</Text></Text>
           </div>
-          <Tag color="success" icon={<CheckCircleOutlined />}>COMPLETED</Tag>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Button
+              type={showDataLayer ? 'default' : 'primary'}
+              onClick={() => setShowDataLayer(v => !v)}
+            >
+              {showDataLayer ? 'Hide data layer' : 'Reveal data layer'}
+            </Button>
+            <Button onClick={() => setDrawerOpen(true)}>Drill-down</Button>
+            <Tag color="success" icon={<CheckCircleOutlined />}>COMPLETED</Tag>
+          </div>
         </div>
       </Card>
 
@@ -143,7 +173,7 @@ function ResultsDashboard() {
               value={summary.avg_wait_time?.toFixed(2) || 0}
               suffix="min"
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: summary.avg_wait_time > 10 ? '#cf1322' : '#3f8600' }}
+              valueStyle={{ color: (summary.avg_wait_time ?? 0) > 10 ? '#cf1322' : '#3f8600' }}
             />
           </Card>
         </Col>
@@ -161,7 +191,7 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="Charger Utilization"
-              value={(summary.charger_utilization * 100)?.toFixed(1) || 0}
+              value={(((summary.charger_utilization ?? 0) * 100)).toFixed(1)}
               suffix="%"
               prefix={<ThunderboltOutlined />}
               valueStyle={{ color: '#1890ff' }}
@@ -204,9 +234,9 @@ function ResultsDashboard() {
           <Card>
             <Statistic
               title="ROI"
-              value={(summary.roi * 100)?.toFixed(1) || 0}
+              value={(((summary.roi ?? 0) * 100)).toFixed(1)}
               suffix="%"
-              valueStyle={{ color: summary.roi > 0.2 ? '#3f8600' : '#faad14' }}
+              valueStyle={{ color: (summary.roi ?? 0) > 0.2 ? '#3f8600' : '#faad14' }}
             />
           </Card>
         </Col>
@@ -220,70 +250,125 @@ function ResultsDashboard() {
         </Col>
       </Row>
 
-      {/* Charts */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card title="Wait Time Over Time">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={timeseriesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }} />
-                <YAxis label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="wait_time" stroke="#8884d8" name="Wait Time" />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
+      {/* Data revelation layer (hidden by default) */}
+      {!showDataLayer ? (
+        <Card style={{ marginTop: 8 }}>
+          <Paragraph style={{ margin: 0, color: '#555' }}>
+            Data visualizations are hidden by default. Click <Text strong>Reveal data layer</Text> to show charts and tables.
+          </Paragraph>
+        </Card>
+      ) : (
+        <div className="data-layer-reveal">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={12}>
+              <Card title="Wait Time Over Time" style={{ background: '#fff' }}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={timeseriesData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }} />
+                    <YAxis label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="wait_time"
+                      stroke="#6366f1"
+                      name="Wait Time"
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Card>
+            </Col>
 
-        <Col xs={24} lg={12}>
-          <Card title="Charger Utilization Over Time">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={timeseriesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }} />
-                <YAxis label={{ value: 'Utilization', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="utilization" stroke="#82ca9d" name="Utilization" />
-              </LineChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
+            <Col xs={24} lg={12}>
+              <Card title="Charger Utilization Over Time" style={{ background: '#fff' }}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={timeseriesData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }} />
+                    <YAxis label={{ value: 'Utilization', angle: -90, position: 'insideLeft' }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="utilization"
+                      stroke="#10b981"
+                      name="Utilization"
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Card>
+            </Col>
 
-        <Col xs={24}>
-          <Card title="Station Performance">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stationData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="swaps" fill="#52c41a" name="Completed Swaps" />
-                <Bar dataKey="lost" fill="#ff4d4f" name="Lost Swaps" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-      </Row>
+            <Col xs={24}>
+              <Card title="Station Performance (table)" style={{ background: '#fff' }}>
+                <Table
+                  columns={STATION_COLUMNS}
+                  dataSource={STATION_DATA}
+                  pagination={false}
+                  size="small"
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Fade/slide reveal animation (one-time; no constant motion) */}
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                .data-layer-reveal {
+                  animation: data-layer-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+                }
+                @keyframes data-layer-in {
+                  from { opacity: 0; transform: translateY(8px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                  .data-layer-reveal { animation: none !important; }
+                }
+              `,
+            }}
+          />
+        </div>
+      )}
 
       {/* Artifacts Information */}
       <Card style={{ marginTop: 24 }}>
         <Title level={4}>📁 Simulation Artifacts</Title>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={8}>
-            <Text strong>Events:</Text> <Text code>{result.artifacts.events}</Text>
+            <Text strong>Events:</Text> <Text code>{artifacts.events || '(not available)'}</Text>
           </Col>
           <Col xs={24} md={8}>
-            <Text strong>Frames:</Text> <Text code>{result.artifacts.frames}</Text>
+            <Text strong>Frames:</Text> <Text code>{artifacts.frames || '(not available)'}</Text>
           </Col>
           <Col xs={24} md={8}>
-            <Text strong>Summary:</Text> <Text code>{result.artifacts.summary}</Text>
+            <Text strong>Summary:</Text> <Text code>{artifacts.summary || '(not available)'}</Text>
           </Col>
         </Row>
       </Card>
+
+      {/* Drill-down panel (flat, not glass; appears only on interaction) */}
+      <Drawer
+        title="Drill-down"
+        placement="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        width={520}
+      >
+        <Paragraph style={{ color: '#555' }}>
+          This panel is a progressive disclosure surface. It stays hidden until opened and should be used for deeper
+          inspection without overwhelming the main view.
+        </Paragraph>
+
+        <Divider />
+        <Title level={5} style={{ marginTop: 0 }}>Run summary (raw)</Title>
+        <pre style={{ fontSize: 12, background: '#f8fafc', padding: 12, borderRadius: 8, overflow: 'auto' }}>
+{JSON.stringify(summary, null, 2)}
+        </pre>
+      </Drawer>
     </div>
   )
 }
