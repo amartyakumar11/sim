@@ -1,15 +1,16 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import { Layout, Menu } from 'antd'
-import { 
-  ExperimentOutlined, 
-  DashboardOutlined, 
+import {
+  ExperimentOutlined,
+  DashboardOutlined,
   HistoryOutlined,
-  EnvironmentOutlined 
+  EnvironmentOutlined,
 } from '@ant-design/icons'
 import ScenarioSubmission from './pages/ScenarioSubmission'
 import JobMonitor from './pages/JobMonitor'
 import ResultsDashboard from './pages/ResultsDashboard'
+import SimulationScene from './pages/SimulationScene'
 import Home from './pages/Home'
 import './App.css'
 
@@ -32,6 +33,9 @@ function App() {
             <Menu.Item key="home" icon={<DashboardOutlined />}>
               <Link to="/">Home</Link>
             </Menu.Item>
+            <Menu.Item key="simulation" icon={<EnvironmentOutlined />}>
+              <Link to="/simulation">Simulation</Link>
+            </Menu.Item>
             <Menu.Item key="submit" icon={<ExperimentOutlined />}>
               <Link to="/submit">Submit Scenario</Link>
             </Menu.Item>
@@ -47,6 +51,7 @@ function App() {
         <Content className="content-wrapper">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/simulation" element={<SimulationScene />} />
             <Route path="/submit" element={<ScenarioSubmission />} />
             <Route path="/monitor" element={<JobMonitor />} />
             <Route path="/results/:runId" element={<ResultsDashboard />} />
