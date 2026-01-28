@@ -14,8 +14,9 @@ from .models import (
     NLToToonRequest,
 )
 from tasks import run_simulation_task, get_task_status, get_task_result, create_job_status
-from nlp.nl_to_toon import translate_nl_to_toon
-from nlp.toon_parser import ToonParseError
+# Temporarily disabled NLP imports due to google-genai dependency issue
+# from nlp.nl_to_toon import translate_nl_to_toon
+# from nlp.toon_parser import ToonParseError
 
 router = APIRouter(prefix="/api", tags=["simulation"])
 
@@ -259,43 +260,36 @@ async def run_scenarios_endpoint(request: ScenarioComparisonRequest):
             detail=f"Scenario comparison failed: {str(e)}"
         )
 
-@router.post("/nl-to-toon")
-async def nl_to_toon_endpoint(request: NLToToonRequest):
-    """
-    Translate natural language scenario to TOON DSL configuration.
-    
-    Stateless endpoint - no simulation triggering, no state storage.
-    """
-    try:
-        city = request.city or "Bangalore"
-        station_catalog = get_station_catalog(city)
-        toon, raw_toon = translate_nl_to_toon(request.text, station_catalog, city)
-        out = {"toon": toon}
-        if not toon.get("stations"):
-            out["raw_toon"] = raw_toon
-        return out
-    except ToonParseError as e:
-        raise HTTPException(
-            status_code=400,
-            detail=str(e),
-        )
-    except RuntimeError as e:
-        # Surface Gemini / NLP engine failures without leaking internals
-        raise HTTPException(
-            status_code=502,
-            detail=f"NLP engine failure: {str(e)}",
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected error: {str(e)}",
-        )
-
-@router.get("/health")
-async def health_check():
-    """API health check endpoint"""
-    return {
-        "status": "healthy", 
-        "timestamp": datetime.now().isoformat(),
-        "service": "digital-twin-api"
-    }
+# Temporarily disabled /nl-to-toon endpoint due to google-genai dependency issue
+# This endpoint will be re-enabled once NLP module dependencies are resolved
+# @router.post("/nl-to-toon")
+# async def nl_to_toon_endpoint(request: NLToToonRequest):
+#     """
+#     Translate natural language scenario to TOON DSL configuration.
+#     
+#     Stateless endpoint - no simulation triggering, no state storage.
+#     """
+#     try:
+#         city = request.city or "Bangalore"
+#         station_catalog = get_station_catalog(city)
+#         toon, raw_toon = translate_nl_to_toon(request.text, station_catalog, city)
+#         out = {"toon": toon}
+#         if not toon.get("stations"):
+#             out["raw_toon"] = raw_toon
+#         return out
+#     except ToonParseError as e:
+#         raise HTTPException(
+#             status_code=400,
+#             detail=str(e),
+#         )
+#     except RuntimeError as e:
+#         # Surface Gemini / NLP engine failures without leaking internals
+#         raise HTTPException(
+#             status_code=502,
+#             detail=f"NLP engine failure: {str(e)}",
+#         )
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"Unexpected error: {str(e)}",
+#         )
