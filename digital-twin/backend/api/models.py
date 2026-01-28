@@ -134,3 +134,15 @@ class ErrorResponse(BaseModel):
     error: str
     message: str
     details: Optional[Dict[str, Any]] = None
+
+
+class NLToToonRequest(BaseModel):
+    """Request model for NL → TOON translation"""
+    text: str = Field(
+        ...,
+        description="Natural language scenario description to translate to TOON DSL"
+    )
+    city: Optional[str] = Field(
+        default="Bangalore",
+        description="City name providing context for station catalog"
+    )
