@@ -269,8 +269,11 @@ async def nl_to_toon_endpoint(request: NLToToonRequest):
     try:
         city = request.city or "Bangalore"
         station_catalog = get_station_catalog(city)
-        toon = translate_nl_to_toon(request.text, station_catalog, city)
-        return {"toon": toon}
+        toon, raw_toon = translate_nl_to_toon(request.text, station_catalog, city)
+        out = {"toon": toon}
+        if not toon.get("stations"):
+            out["raw_toon"] = raw_toon
+        return out
     except ToonParseError as e:
         raise HTTPException(
             status_code=400,

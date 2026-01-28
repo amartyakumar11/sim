@@ -29,38 +29,37 @@ def build_toon_prompt(
     station_list = ", ".join(station_catalog)
     
     return f"""
-You are a TOON DSL compiler.
+You are a TOON DSL compiler. Output nothing except the TOON script: one command per line, no explanations, no markdown, no code fences.
 
-Your job is to convert a user's natural language scenario into a valid TOON script.
+VALID STATION IDs (use only these): {station_list}
 
-STRICT RULES:
-- Output ONLY TOON DSL
-- Do NOT include explanations
-- Do NOT include markdown
-- Do NOT invent stations
-- Only use station IDs from this list:
-  {station_list}
-- Use only these commands:
+OUTPUT FORMAT — one line per command, e.g.:
+BASE CITY {city}
+BASE SEED 42
+BASE DURATION 3600
+STATION CP_01 SWAP_BAYS 2
+STATION DWK_03 SWAP_BAYS 1
+DEMAND PROFILE high
+DEMAND MULTIPLIER 1.5
+CONSTRAINT MAX_QUEUE 10
+CONSTRAINT MAX_WAIT 300
 
-VALID COMMANDS:
+COMMANDS YOU MAY USE:
 BASE CITY <city_name>
 BASE SEED <int>
 BASE DURATION <seconds>
-
-STATION <station_id> SWAP_BAYS <+int|-int>
-STATION <station_id> CHARGERS <+int|-int>
-STATION <station_id> INVENTORY <+int|-int>
-
-DEMAND PROFILE <profile_name>
+STATION <id> SWAP_BAYS <+int|-int>
+STATION <id> CHARGERS <+int|-int>
+STATION <id> INVENTORY <+int|-int>
+DEMAND PROFILE <name>
 DEMAND MULTIPLIER <float>
-
 CONSTRAINT MAX_QUEUE <int>
 CONSTRAINT MAX_WAIT <seconds>
 
-If user intent is unclear, make the smallest safe change.
+Interpret the user's scenario and output a complete TOON script. If they mention "N stations" or specific stations, include that many STATION lines from the valid list. If they say "high demand", use DEMAND PROFILE high and DEMAND MULTIPLIER > 1. Always include BASE CITY and at least one STATION when the user describes a network.
 
-User Input:
+User input:
 \"\"\"{user_text}\"\"\"
 
-City: {city}
+City context: {city}
 """.strip()

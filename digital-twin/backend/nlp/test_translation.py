@@ -25,7 +25,7 @@ def test_translation():
     city = "Bangalore"
     
     try:
-        result = translate_nl_to_toon(
+        result, raw_toon = translate_nl_to_toon(
             user_text,
             station_catalog,
             city
@@ -35,6 +35,9 @@ def test_translation():
         print("\nResult:")
         import json
         print(json.dumps(result, indent=2))
+        if not result.get("stations"):
+            print("\nRaw TOON (no stations parsed):")
+            print(raw_toon[:500] if raw_toon else "(empty)")
         
         # Validate structure
         assert "base" in result, "Missing 'base' section"

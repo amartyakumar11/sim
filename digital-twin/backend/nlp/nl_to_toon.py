@@ -9,16 +9,20 @@ Responsibilities:
 - Return structured scenario config
 """
 
+import logging
+
 from .gemini_client import GeminiClient
 from .toon_prompt_builder import build_toon_prompt
 from .toon_parser import parse_toon_script, ToonParseError
+
+logger = logging.getLogger(__name__)
 
 
 def translate_nl_to_toon(
     user_text: str,
     station_catalog: list[str],
     city: str
-) -> dict:
+) -> tuple[dict, str]:
     """
     Translate natural language scenario to TOON DSL configuration.
     
@@ -28,7 +32,7 @@ def translate_nl_to_toon(
         city: City name for context
         
     Returns:
-        Structured scenario configuration dictionary
+        (scenario_config, raw_toon_text) – parsed config and raw Gemini output
         
     Raises:
         RuntimeError: If Gemini API fails
@@ -45,10 +49,16 @@ def translate_nl_to_toon(
     # Parse TOON script
     scenario_config = parse_toon_script(toon_text, set(station_catalog))
     
+    if not scenario_config.get("stations"):
+        logger.warning(
+            "Parsed TOON has no STATION lines. Raw Gemini output (first 1500 chars): %s",
+            (toon_text or "")[:1500],
+        )
+    
     # Validate required fields
     validate_toon_config(scenario_config, station_catalog)
     
-    return scenario_config
+    return scenario_config, (toon_text or "")
 
 
 def validate_toon_config(config: dict, station_catalog: list[str]) -> None:
