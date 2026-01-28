@@ -21,7 +21,7 @@ function getCapacityTier(capacity) {
 function getStationState(queueLength, activeChargers, capacity) {
   const utilization = activeChargers / capacity
   const hasQueue = queueLength > 0
-  
+
   if (hasQueue && utilization > 0.7) return 'busy'
   if (hasQueue || utilization > 0.4) return 'active'
   return 'idle'
@@ -30,30 +30,57 @@ function getStationState(queueLength, activeChargers, capacity) {
 function SimulationScene() {
   // Simulate state changes (using existing simulation output structure)
   const [stationStates, setStationStates] = useState(STATIONS)
-  
+  const [overlaysVisible, setOverlaysVisible] = useState(true)
+
   // Periodic state updates to simulate live simulation (no API calls, just visual updates)
   useEffect(() => {
     const interval = setInterval(() => {
-      setStationStates(prev => prev.map(station => {
-        // Simulate realistic state transitions
-        const queueChange = Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0
-        const chargerChange = Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0
-        
-        const newQueueLength = Math.max(0, Math.min(8, station.queueLength + queueChange))
-        const newActiveChargers = Math.max(0, Math.min(station.capacity, station.activeChargers + chargerChange))
-        const newState = getStationState(newQueueLength, newActiveChargers, station.capacity)
-        
-        return {
-          ...station,
-          queueLength: newQueueLength,
-          activeChargers: newActiveChargers,
-          state: newState
-        }
-      }))
+      setStationStates(prev =>
+        prev.map(station => {
+          // Simulate realistic state transitions
+          const queueChange = Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0
+          const chargerChange = Math.random() > 0.8 ? (Math.random() > 0.5 ? 1 : -1) : 0
+
+          const newQueueLength = Math.max(0, Math.min(8, station.queueLength + queueChange))
+          const newActiveChargers = Math.max(0, Math.min(station.capacity, station.activeChargers + chargerChange))
+          const newState = getStationState(newQueueLength, newActiveChargers, station.capacity)
+
+          return {
+            ...station,
+            queueLength: newQueueLength,
+            activeChargers: newActiveChargers,
+            state: newState,
+          }
+        }),
+      )
     }, 2000) // Update every 2 seconds
-    
+
     return () => clearInterval(interval)
   }, [])
+
+  // Derived observer signals (no API calls; derived from existing station state)
+  const derived = (() => {
+    const counts = { idle: 0, active: 0, busy: 0, queued: 0 }
+    let hotspot = null // station with highest queue
+    for (const s of stationStates) {
+      const st = getStationState(s.queueLength, s.activeChargers, s.capacity)
+      counts[st] += 1
+      if (s.queueLength > 0) counts.queued += 1
+      if (!hotspot || s.queueLength > hotspot.queueLength) hotspot = s
+    }
+
+    // Qualitative pressure (no numeric overlay)
+    const pressure =
+      counts.busy >= 3 || (hotspot?.queueLength ?? 0) >= 5
+        ? 'High'
+        : counts.active >= 3 || (hotspot?.queueLength ?? 0) >= 3
+        ? 'Medium'
+        : 'Low'
+
+    const hotspotLabel = hotspot && hotspot.queueLength > 0 ? hotspot.label : 'None'
+
+    return { counts, pressure, hotspotLabel }
+  })()
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px' }}>
@@ -95,6 +122,119 @@ function SimulationScene() {
           }}
         />
 
+        {/* Observer overlays (glassmorphism allowed here) */}
+        {overlaysVisible && (
+          <div
+            className="glass-overlay overlay-summary"
+            style={{
+              position: 'absolute',
+              right: 16,
+              top: 16,
+              width: 280,
+              padding: 12,
+              borderRadius: 14,
+              backgroundColor: 'rgba(15, 23, 42, 0.75)', // opacity within 0.65–0.90
+              backdropFilter: 'blur(10px)', // <= 12px
+              border: '1px solid rgba(248, 250, 252, 0.35)',
+              boxShadow: '0 12px 30px rgba(2, 6, 23, 0.35)',
+              color: 'rgba(248, 250, 252, 0.95)',
+              pointerEvents: 'none', // observer-only
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div style={{ fontSize: 11, letterSpacing: 0.14, textTransform: 'uppercase', opacity: 0.85 }}>
+                System Snapshot
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.9 }}>
+                Queue pressure: <span style={{ fontWeight: 700 }}>{derived.pressure}</span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 10, opacity: 0.78, letterSpacing: 0.12, textTransform: 'uppercase' }}>Idle</div>
+                <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {Array.from({ length: derived.counts.idle }).map((_, i) => (
+                    <span
+                      key={`i-${i}`}
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 999,
+                        backgroundColor: 'rgba(148, 163, 184, 0.9)',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, opacity: 0.78, letterSpacing: 0.12, textTransform: 'uppercase' }}>Active</div>
+                <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {Array.from({ length: derived.counts.active }).map((_, i) => (
+                    <span
+                      key={`a-${i}`}
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 999,
+                        backgroundColor: 'rgba(59, 130, 246, 0.95)',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, opacity: 0.78, letterSpacing: 0.12, textTransform: 'uppercase' }}>Busy</div>
+                <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {Array.from({ length: derived.counts.busy }).map((_, i) => (
+                    <span
+                      key={`b-${i}`}
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 999,
+                        backgroundColor: 'rgba(220, 38, 38, 0.95)',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 10, opacity: 0.78, letterSpacing: 0.12, textTransform: 'uppercase' }}>
+                  Hotspot
+                </div>
+                <div style={{ marginTop: 6, fontSize: 12, fontWeight: 650 }}>
+                  {derived.hotspotLabel}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating control (glassmorphism allowed; max 2 glass layers at once) */}
+        <button
+          type="button"
+          className="glass-overlay overlay-control"
+          onClick={() => setOverlaysVisible(v => !v)}
+          style={{
+            position: 'absolute',
+            right: 16,
+            bottom: 16,
+            padding: '10px 12px',
+            borderRadius: 14,
+            backgroundColor: 'rgba(15, 23, 42, 0.70)', // within contract
+            backdropFilter: 'blur(10px)', // <= 12px
+            border: '1px solid rgba(248, 250, 252, 0.35)',
+            color: 'rgba(248, 250, 252, 0.95)',
+            fontSize: 12,
+            letterSpacing: 0.2,
+            cursor: 'pointer',
+            boxShadow: '0 12px 30px rgba(2, 6, 23, 0.35)',
+          }}
+        >
+          {overlaysVisible ? 'Hide overlays' : 'Show overlays'}
+        </button>
+
         {/* Station placeholders with queue and state visualization */}
         {stationStates.map((station, index) => {
           const tier = getCapacityTier(station.capacity)
@@ -103,7 +243,7 @@ function SimulationScene() {
           const isBusy = stationState === 'busy'
           const isActive = stationState === 'active'
           const isIdle = stationState === 'idle'
-          
+
           // Visual density: busy = more elements, idle = minimal
           const chargeIndicatorCount = Math.min(station.activeChargers, 4) // Max 4 indicators for clarity
           const queueBarHeight = Math.min(station.queueLength * 6, 30) // Max 30px height
@@ -139,8 +279,11 @@ function SimulationScene() {
                     backgroundColor: isBusy ? '#dc2626' : '#f59e0b',
                     borderRadius: '2px 2px 0 0',
                     marginBottom: 4,
-                    transition: 'height 240ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
-                    boxShadow: isBusy ? '0 2px 8px rgba(220, 38, 38, 0.4)' : '0 2px 6px rgba(245, 158, 11, 0.3)',
+                    transition:
+                      'height 240ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 240ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+                    boxShadow: isBusy
+                      ? '0 2px 8px rgba(220, 38, 38, 0.4)'
+                      : '0 2px 6px rgba(245, 158, 11, 0.3)',
                   }}
                 />
               )}
@@ -158,7 +301,7 @@ function SimulationScene() {
                       : tier === 'medium'
                       ? 'linear-gradient(135deg, #0369a1, #38bdf8)'
                       : 'linear-gradient(135deg, #4b5563, #9ca3af)',
-                  boxShadow: isBusy 
+                  boxShadow: isBusy
                     ? '0 8px 24px rgba(15, 23, 42, 0.5), 0 0 0 2px rgba(220, 38, 38, 0.3)'
                     : isActive
                     ? '0 8px 20px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(59, 130, 246, 0.2)'
@@ -184,7 +327,7 @@ function SimulationScene() {
                       const radius = baseSize * 0.42
                       const x = Math.cos(angle) * radius
                       const y = Math.sin(angle) * radius
-                      
+
                       return (
                         <div
                           key={i}
@@ -229,7 +372,7 @@ function SimulationScene() {
                   marginTop: 6,
                   padding: '2px 8px',
                   borderRadius: 999,
-                  backgroundColor: isBusy 
+                  backgroundColor: isBusy
                     ? 'rgba(220, 38, 38, 0.9)'
                     : isActive
                     ? 'rgba(59, 130, 246, 0.9)'
@@ -375,8 +518,9 @@ function SimulationScene() {
       </div>
 
       {/* Local keyframes and reduced-motion handling */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           @keyframes sim-station-entry {
             from {
               opacity: 0;
@@ -419,16 +563,43 @@ function SimulationScene() {
             }
           }
 
+          /* Glass overlays: fade + slide only, strictly timed */
+          .glass-overlay {
+            animation: overlay-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+          }
+
+          @keyframes overlay-in {
+            from {
+              opacity: 0;
+              transform: translateY(-6px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          /* Hover (control only): subtle, no blur changes */
+          .overlay-control:hover {
+            transform: translateY(-1px);
+            transition: transform 160ms cubic-bezier(0.25, 0.1, 0.25, 1.0);
+          }
+
           @media (prefers-reduced-motion: reduce) {
             .sim-station,
             .queue-bar,
-            .charge-indicator {
+            .charge-indicator,
+            .glass-overlay {
               animation: none !important;
               transition: opacity 80ms !important;
             }
+            .overlay-control:hover {
+              transform: none;
+            }
           }
-        `
-      }} />
+        `,
+        }}
+      />
     </div>
   )
 }
