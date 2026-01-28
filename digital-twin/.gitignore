@@ -6,3 +6,4 @@ node_modules/
 dist/
 .next/
 backend/simulation/_verification.py
+skills/
