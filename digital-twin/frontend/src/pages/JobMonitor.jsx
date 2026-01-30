@@ -174,33 +174,78 @@ function JobMonitor() {
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-      <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <Title level={2} style={{ margin: 0 }}>📊 Job Monitor</Title>
-          <Button 
-            icon={<ReloadOutlined />} 
-            onClick={refreshJobs}
-            loading={loading}
-          >
-            Refresh
-          </Button>
+      {/* Page Header */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 32 
+      }}>
+        <div>
+          <h1 style={{
+            fontSize: 32,
+            fontWeight: 700,
+            color: 'var(--color-text-primary)',
+            marginBottom: 4,
+            letterSpacing: '-0.02em'
+          }}>
+            Job Monitor
+          </h1>
+          <p style={{
+            fontSize: 15,
+            color: 'var(--color-text-secondary)',
+            margin: 0
+          }}>
+            Track all simulation runs and their execution status
+          </p>
         </div>
+        <Button 
+          icon={<ReloadOutlined />} 
+          onClick={refreshJobs}
+          loading={loading}
+          style={{
+            borderRadius: 'var(--radius-md)',
+            height: 38
+          }}
+        >
+          Refresh
+        </Button>
+      </div>
 
+      {/* Table Card */}
+      <div style={{
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-border-light)',
+        borderRadius: 'var(--radius-xl)',
+        overflow: 'hidden',
+        boxShadow: 'var(--shadow-sm)'
+      }}>
         <Table
           columns={columns}
           dataSource={jobs}
           rowKey="run_id"
-          pagination={{ pageSize: 10 }}
-          locale={{ emptyText: 'No jobs found. Submit a scenario to get started.' }}
+          pagination={{ 
+            pageSize: 10,
+            showSizeChanger: false,
+            style: { padding: '16px 24px' }
+          }}
+          locale={{ emptyText: 'No jobs yet. Submit a scenario to get started.' }}
+          style={{
+            background: 'transparent'
+          }}
         />
-      </Card>
+      </div>
 
       <Modal
-        title="Job Details"
+        title={<span style={{ fontWeight: 600, fontSize: 16 }}>Job Details</span>}
         open={detailsVisible}
         onCancel={() => setDetailsVisible(false)}
         footer={[
-          <Button key="close" onClick={() => setDetailsVisible(false)}>
+          <Button 
+            key="close" 
+            onClick={() => setDetailsVisible(false)}
+            style={{ borderRadius: 'var(--radius-md)' }}
+          >
             Close
           </Button>,
           selectedJob?.status === 'completed' && (
@@ -211,15 +256,17 @@ function JobMonitor() {
                 setDetailsVisible(false)
                 viewResults(selectedJob.run_id)
               }}
+              style={{ borderRadius: 'var(--radius-md)' }}
             >
               View Results
             </Button>
           )
         ]}
         width={700}
+        style={{ borderRadius: 'var(--radius-xl)' }}
       >
         {selectedJob && (
-          <Descriptions bordered column={1}>
+          <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Run ID">
               <Text code copyable>{selectedJob.run_id}</Text>
             </Descriptions.Item>
@@ -231,6 +278,7 @@ function JobMonitor() {
                 percent={selectedJob.progress ? Math.round(selectedJob.progress * 100) : 0}
                 status={selectedJob.status === 'completed' ? 'success' : 
                         selectedJob.status === 'failed' ? 'exception' : 'active'}
+                strokeColor={selectedJob.status === 'completed' ? 'var(--color-accent-success)' : 'var(--color-accent-primary)'}
               />
             </Descriptions.Item>
             <Descriptions.Item label="Message">

@@ -179,176 +179,357 @@ function ResultsDashboard() {
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-      <Card style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Title level={2} style={{ margin: 0 }}>Simulation Results</Title>
-            <Text type="secondary">
-              Run ID: <Text code>{runIdShort}</Text>
+      {/* Page Header */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'flex-start', 
+        marginBottom: 32 
+      }}>
+        <div>
+          <h1 style={{
+            fontSize: 32,
+            fontWeight: 700,
+            color: 'var(--color-text-primary)',
+            marginBottom: 8,
+            letterSpacing: '-0.02em'
+          }}>
+            Simulation Results
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>
+              Run ID:
+            </span>
+            <Text code style={{ 
+              fontSize: 13, 
+              fontFamily: 'monospace',
+              background: 'var(--color-bg-subtle)',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border-light)'
+            }}>
+              {runIdShort}
             </Text>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Button
-              type={showDataLayer ? 'default' : 'primary'}
-              onClick={() => setShowDataLayer(v => !v)}
-            >
-              {showDataLayer ? 'Hide data layer' : 'Reveal data layer'}
-            </Button>
-            <Button onClick={() => setDrawerOpen(true)}>Drill-down</Button>
-            <Tag color="success" icon={<CheckCircleOutlined />}>COMPLETED</Tag>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              background: 'rgba(16, 185, 129, 0.1)',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--color-accent-success)'
+            }}>
+              <CheckCircleOutlined />
+              COMPLETED
+            </div>
           </div>
         </div>
-      </Card>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button
+            type={showDataLayer ? 'default' : 'primary'}
+            onClick={() => setShowDataLayer(v => !v)}
+            style={{ borderRadius: 'var(--radius-md)', height: 38 }}
+          >
+            {showDataLayer ? 'Hide Charts' : 'Show Charts'}
+          </Button>
+          <Button 
+            onClick={() => setDrawerOpen(true)}
+            style={{ borderRadius: 'var(--radius-md)', height: 38 }}
+          >
+            View Details
+          </Button>
+        </div>
+      </div>
 
       {/* KPI Summary Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Avg Wait Time"
-              value={formatFixed(summary.avg_wait_time, 2)}
-              suffix="min"
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: (asNumber(summary.avg_wait_time) ?? 0) > 10 ? '#cf1322' : '#3f8600' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Lost Swaps"
-              value={asNumber(summary.lost_swaps) ?? 0}
-              prefix={<CloseCircleOutlined />}
-              valueStyle={{ color: '#cf1322' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Charger Utilization"
-              value={((asNumber(summary.charger_utilization) ?? 0) * 100).toFixed(1)}
-              suffix="%"
-              prefix={<ThunderboltOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="City Throughput"
-              value={asNumber(summary.city_throughput) ?? 0}
-              suffix="swaps"
-              prefix={<RiseOutlined />}
-              valueStyle={{ color: '#3f8600' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Idle Inventory"
-              value={formatFixed(summary.idle_inventory, 1)}
-              suffix="%"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Cost Impact"
-              value={formatFixed(summary.total_cost_impact, 2)}
-              prefix={<DollarOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="ROI"
-              value={((asNumber(summary.roi) ?? 0) * 100).toFixed(1)}
-              suffix="%"
-              valueStyle={{ color: (asNumber(summary.roi) ?? 0) > 0.2 ? '#3f8600' : '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="Events Logged"
-              value={asNumber(result.events_count) ?? 0}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gap: 16,
+        marginBottom: 24
+      }}>
+        {[
+          { 
+            label: 'Avg Wait Time', 
+            value: formatFixed(summary.avg_wait_time, 2), 
+            suffix: 'min',
+            icon: <ClockCircleOutlined />,
+            color: (asNumber(summary.avg_wait_time) ?? 0) > 10 ? '#ef4444' : '#10b981',
+            status: (asNumber(summary.avg_wait_time) ?? 0) > 10 ? 'warning' : 'good'
+          },
+          { 
+            label: 'Lost Swaps', 
+            value: asNumber(summary.lost_swaps) ?? 0,
+            icon: <CloseCircleOutlined />,
+            color: '#ef4444',
+            status: 'critical'
+          },
+          { 
+            label: 'Charger Utilization', 
+            value: ((asNumber(summary.charger_utilization) ?? 0) * 100).toFixed(1), 
+            suffix: '%',
+            icon: <ThunderboltOutlined />,
+            color: '#3b82f6',
+            status: 'info'
+          },
+          { 
+            label: 'City Throughput', 
+            value: asNumber(summary.city_throughput) ?? 0, 
+            suffix: 'swaps',
+            icon: <RiseOutlined />,
+            color: '#10b981',
+            status: 'good'
+          },
+          { 
+            label: 'Idle Inventory', 
+            value: formatFixed(summary.idle_inventory, 1), 
+            suffix: '%',
+            color: '#71717a',
+            status: 'neutral'
+          },
+          { 
+            label: 'Cost Impact', 
+            value: formatFixed(summary.total_cost_impact, 2),
+            icon: <DollarOutlined />,
+            color: '#f59e0b',
+            status: 'neutral'
+          },
+          { 
+            label: 'ROI', 
+            value: ((asNumber(summary.roi) ?? 0) * 100).toFixed(1), 
+            suffix: '%',
+            color: (asNumber(summary.roi) ?? 0) > 0.2 ? '#10b981' : '#f59e0b',
+            status: (asNumber(summary.roi) ?? 0) > 0.2 ? 'good' : 'warning'
+          },
+          { 
+            label: 'Events Logged', 
+            value: asNumber(result.events_count) ?? 0,
+            color: '#71717a',
+            status: 'neutral'
+          }
+        ].map((kpi, i) => (
+          <div
+            key={i}
+            style={{
+              padding: 20,
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border-light)',
+              borderRadius: 'var(--radius-lg)',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'all 180ms cubic-bezier(0.2, 0.8, 0.2, 1)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+              e.currentTarget.style.borderColor = 'var(--color-border-medium)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+              e.currentTarget.style.borderColor = 'var(--color-border-light)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
+              <span style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--color-text-tertiary)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                {kpi.label}
+              </span>
+              {kpi.icon && (
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 'var(--radius-md)',
+                  background: `${kpi.color}15`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 16,
+                  color: kpi.color
+                }}>
+                  {kpi.icon}
+                </div>
+              )}
+            </div>
+            <div style={{
+              fontSize: 28,
+              fontWeight: 700,
+              color: kpi.color,
+              letterSpacing: '-0.02em',
+              lineHeight: 1
+            }}>
+              {kpi.value}
+              {kpi.suffix && (
+                <span style={{ 
+                  fontSize: 16, 
+                  fontWeight: 500, 
+                  color: 'var(--color-text-tertiary)',
+                  marginLeft: 4
+                }}>
+                  {kpi.suffix}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Data revelation layer (hidden by default) */}
       {!showDataLayer ? (
-        <Card style={{ marginTop: 8 }}>
-          <Paragraph style={{ margin: 0, color: '#555' }}>
-            Data visualizations are hidden by default. Click <Text strong>Reveal data layer</Text> to show charts and tables.
-          </Paragraph>
-        </Card>
+        <div style={{ 
+          padding: 48,
+          background: 'var(--color-bg-elevated)',
+          border: '1px solid var(--color-border-light)',
+          borderRadius: 'var(--radius-xl)',
+          textAlign: 'center',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
+          <p style={{ 
+            margin: 0, 
+            color: 'var(--color-text-secondary)',
+            fontSize: 15,
+            lineHeight: 1.6
+          }}>
+            Charts and tables are hidden by default to reduce cognitive load.<br />
+            Click <strong style={{ color: 'var(--color-accent-primary)' }}>Show Charts</strong> above to reveal detailed analytics.
+          </p>
+        </div>
       ) : (
         <div className="data-layer-reveal">
-          <Row gutter={[16, 16]}>
-            <Col xs={24} lg={12}>
-              <Card title="Wait Time Over Time" style={{ background: '#fff' }}>
+          <div style={{ display: 'grid', gap: 20 }}>
+            {/* Charts Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: 20 }}>
+              <div style={{
+                padding: 24,
+                background: 'var(--color-bg-elevated)',
+                border: '1px solid var(--color-border-light)',
+                borderRadius: 'var(--radius-xl)',
+                boxShadow: 'var(--shadow-sm)'
+              }}>
+                <h3 style={{ 
+                  fontSize: 16, 
+                  fontWeight: 600, 
+                  color: 'var(--color-text-primary)', 
+                  marginBottom: 20,
+                  letterSpacing: '-0.01em'
+                }}>
+                  Wait Time Over Time
+                </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={timeseriesData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }} />
-                    <YAxis label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft' }} />
-                    <Tooltip />
-                    <Legend />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" />
+                    <XAxis 
+                      dataKey="time" 
+                      label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }}
+                      tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
+                    />
+                    <YAxis 
+                      label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft' }}
+                      tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        background: 'var(--color-bg-elevated)',
+                        border: '1px solid var(--color-border-light)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 13
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 13 }} />
                     <Line
                       type="monotone"
                       dataKey="wait_time"
                       stroke="#6366f1"
+                      strokeWidth={2}
                       name="Wait Time"
                       isAnimationActive={false}
+                      dot={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              </Card>
-            </Col>
+              </div>
 
-            <Col xs={24} lg={12}>
-              <Card title="Charger Utilization Over Time" style={{ background: '#fff' }}>
+              <div style={{
+                padding: 24,
+                background: 'var(--color-bg-elevated)',
+                border: '1px solid var(--color-border-light)',
+                borderRadius: 'var(--radius-xl)',
+                boxShadow: 'var(--shadow-sm)'
+              }}>
+                <h3 style={{ 
+                  fontSize: 16, 
+                  fontWeight: 600, 
+                  color: 'var(--color-text-primary)', 
+                  marginBottom: 20,
+                  letterSpacing: '-0.01em'
+                }}>
+                  Charger Utilization Over Time
+                </h3>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={timeseriesData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }} />
-                    <YAxis label={{ value: 'Utilization', angle: -90, position: 'insideLeft' }} />
-                    <Tooltip />
-                    <Legend />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" />
+                    <XAxis 
+                      dataKey="time" 
+                      label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }}
+                      tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
+                    />
+                    <YAxis 
+                      label={{ value: 'Utilization', angle: -90, position: 'insideLeft' }}
+                      tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        background: 'var(--color-bg-elevated)',
+                        border: '1px solid var(--color-border-light)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: 13
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 13 }} />
                     <Line
                       type="monotone"
                       dataKey="utilization"
                       stroke="#10b981"
+                      strokeWidth={2}
                       name="Utilization"
                       isAnimationActive={false}
+                      dot={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
-              </Card>
-            </Col>
+              </div>
+            </div>
 
-            <Col xs={24}>
-              <Card title="Station Performance (table)" style={{ background: '#fff' }}>
-                <Table
-                  columns={STATION_COLUMNS}
-                  dataSource={STATION_DATA}
-                  pagination={false}
-                  size="small"
-                />
-              </Card>
-            </Col>
-          </Row>
+            {/* Station Performance Table */}
+            <div style={{
+              padding: 24,
+              background: 'var(--color-bg-elevated)',
+              border: '1px solid var(--color-border-light)',
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: 'var(--shadow-sm)'
+            }}>
+              <h3 style={{ 
+                fontSize: 16, 
+                fontWeight: 600, 
+                color: 'var(--color-text-primary)', 
+                marginBottom: 20,
+                letterSpacing: '-0.01em'
+              }}>
+                Station Performance
+              </h3>
+              <Table
+                columns={STATION_COLUMNS}
+                dataSource={STATION_DATA}
+                pagination={false}
+                size="small"
+                style={{ background: 'transparent' }}
+              />
+            </div>
+          </div>
 
           {/* Fade/slide reveal animation (one-time; no constant motion) */}
           <style
@@ -371,37 +552,101 @@ function ResultsDashboard() {
       )}
 
       {/* Artifacts Information */}
-      <Card style={{ marginTop: 24 }}>
-        <Title level={4}>Simulation Artifacts</Title>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={8}>
-            <Text strong>Events:</Text> <Text code>{artifacts.events || '(not available)'}</Text>
-          </Col>
-          <Col xs={24} md={8}>
-            <Text strong>Frames:</Text> <Text code>{artifacts.frames || '(not available)'}</Text>
-          </Col>
-          <Col xs={24} md={8}>
-            <Text strong>Summary:</Text> <Text code>{artifacts.summary || '(not available)'}</Text>
-          </Col>
-        </Row>
-      </Card>
+      <div style={{ 
+        padding: 24,
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-border-light)',
+        borderRadius: 'var(--radius-xl)',
+        marginTop: 24,
+        boxShadow: 'var(--shadow-sm)'
+      }}>
+        <h3 style={{ 
+          fontSize: 16, 
+          fontWeight: 600, 
+          color: 'var(--color-text-primary)', 
+          marginBottom: 16,
+          letterSpacing: '-0.01em'
+        }}>
+          Simulation Artifacts
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+          {[
+            { label: 'Events', value: artifacts.events || '(not available)' },
+            { label: 'Frames', value: artifacts.frames || '(not available)' },
+            { label: 'Summary', value: artifacts.summary || '(not available)' }
+          ].map((artifact, i) => (
+            <div key={i} style={{
+              padding: 14,
+              background: 'var(--color-bg-subtle)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border-light)'
+            }}>
+              <div style={{ 
+                fontSize: 11, 
+                fontWeight: 600, 
+                color: 'var(--color-text-tertiary)', 
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginBottom: 6
+              }}>
+                {artifact.label}
+              </div>
+              <Text code style={{ 
+                fontSize: 12, 
+                fontFamily: 'monospace',
+                background: 'var(--color-bg-elevated)',
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--color-border-light)'
+              }}>
+                {artifact.value}
+              </Text>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Drill-down panel (flat, not glass; appears only on interaction) */}
       <Drawer
-        title="Drill-down"
+        title={<span style={{ fontWeight: 600, fontSize: 16 }}>Detailed Summary</span>}
         placement="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={520}
+        width={560}
+        styles={{
+          body: { padding: 24 }
+        }}
       >
-        <Paragraph style={{ color: '#555' }}>
-          This panel is a progressive disclosure surface. It stays hidden until opened and should be used for deeper
-          inspection without overwhelming the main view.
-        </Paragraph>
+        <p style={{ 
+          color: 'var(--color-text-secondary)', 
+          marginBottom: 24,
+          fontSize: 14,
+          lineHeight: 1.6
+        }}>
+          Raw JSON output from the simulation engine. Use this for debugging or advanced analysis.
+        </p>
 
-        <Divider />
-        <Title level={5} style={{ marginTop: 0 }}>Run summary (raw)</Title>
-        <pre style={{ fontSize: 12, background: '#f8fafc', padding: 12, borderRadius: 8, overflow: 'auto' }}>
+        <Divider style={{ borderColor: 'var(--color-border-light)' }} />
+        
+        <h4 style={{ 
+          fontWeight: 600, 
+          fontSize: 14, 
+          color: 'var(--color-text-primary)', 
+          marginBottom: 12,
+          marginTop: 0
+        }}>
+          Run Summary
+        </h4>
+        <pre style={{ 
+          fontSize: 12, 
+          background: 'var(--color-bg-subtle)', 
+          padding: 16, 
+          borderRadius: 'var(--radius-md)', 
+          overflow: 'auto',
+          border: '1px solid var(--color-border-light)',
+          lineHeight: 1.5,
+          color: 'var(--color-text-secondary)'
+        }}>
 {JSON.stringify(summary, null, 2)}
         </pre>
       </Drawer>

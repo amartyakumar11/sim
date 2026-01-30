@@ -1,23 +1,17 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
-  Card, 
   Form, 
   Input, 
   InputNumber, 
   Button, 
   message, 
-  Space,
-  Typography,
-  Divider,
-  Row,
-  Col,
-  Tag
+  Switch,
+  Divider
 } from 'antd'
-import { SendOutlined, PlusOutlined } from '@ant-design/icons'
+import { SendOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 import { simulationAPI } from '../services/api'
 
-const { Title, Paragraph } = Typography
 const { TextArea } = Input
 
 function ScenarioSubmission() {
@@ -51,15 +45,14 @@ function ScenarioSubmission() {
       }
 
       const response = await simulationAPI.submitScenario(scenarioData)
-      message.success(`Scenario submitted! Run ID: ${response.run_id}`)
+      message.success(`Scenario submitted successfully`)
       
-      // Navigate to monitor page
       setTimeout(() => {
         navigate(`/monitor?runId=${response.run_id}`)
-      }, 1500)
+      }, 1200)
     } catch (error) {
       const errorMsg = error.response?.data?.detail || error.message
-      message.error(`Failed to submit scenario: ${errorMsg}`)
+      message.error(`Failed to submit: ${errorMsg}`)
     } finally {
       setLoading(false)
     }
@@ -82,15 +75,35 @@ function ScenarioSubmission() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <Card>
-        <Title level={2}>🚀 Submit New Scenario</Title>
-        <Paragraph>
-          Configure your simulation scenario with city layout, stations, and interventions.
-        </Paragraph>
-        
-        <Divider />
+    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+      {/* Page Header */}
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{
+          fontSize: 32,
+          fontWeight: 700,
+          color: 'var(--color-text-primary)',
+          marginBottom: 8,
+          letterSpacing: '-0.02em'
+        }}>
+          New Scenario
+        </h1>
+        <p style={{
+          fontSize: 15,
+          color: 'var(--color-text-secondary)',
+          margin: 0
+        }}>
+          Configure your simulation with city layout, stations, and operational interventions.
+        </p>
+      </div>
 
+      {/* Main Form Card */}
+      <div style={{
+        background: 'var(--color-bg-elevated)',
+        border: '1px solid var(--color-border-light)',
+        borderRadius: 'var(--radius-xl)',
+        padding: 32,
+        boxShadow: 'var(--shadow-sm)'
+      }}>
         <Form
           form={form}
           layout="vertical"
@@ -100,122 +113,216 @@ function ScenarioSubmission() {
             simulation_duration: 3600
           }}
         >
+          {/* Description */}
           <Form.Item
-            label="Scenario Description"
+            label={<span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Scenario Description</span>}
             name="description"
             rules={[
               { required: true, message: 'Please enter a description' },
               { min: 1, max: 500, message: 'Description must be 1-500 characters' }
             ]}
           >
-            <Input.TextArea 
+            <TextArea 
               rows={3} 
-              placeholder="e.g., Add 5 charging stations to downtown area"
+              placeholder="e.g., Add 5 charging stations to downtown area to reduce wait times"
+              style={{
+                borderRadius: 'var(--radius-md)',
+                fontSize: 14
+              }}
             />
           </Form.Item>
 
-          <Form.Item
-            label="Simulation Duration (seconds)"
-            name="simulation_duration"
-            rules={[{ required: true }]}
-          >
-            <InputNumber 
-              min={60} 
-              max={86400} 
-              style={{ width: '100%' }}
-              addonAfter="seconds"
-            />
-          </Form.Item>
-
-          <Form.Item
-            label="Simulation Mode"
-            help="Fake mode is fast and UI-safe. Real mode uses full SimPy simulation (slower, accurate)."
-          >
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={mode === "real"}
-                onChange={(e) => setMode(e.target.checked ? "real" : "fake")}
-                style={{ marginRight: 4 }}
+          {/* Duration & Mode */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <Form.Item
+              label={<span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Duration (seconds)</span>}
+              name="simulation_duration"
+              rules={[{ required: true }]}
+            >
+              <InputNumber 
+                min={60} 
+                max={86400} 
+                style={{ 
+                  width: '100%',
+                  borderRadius: 'var(--radius-md)'
+                }}
               />
-              Use Real Simulation (slower, accurate)
-            </label>
-            {mode === "fake" && (
-              <Tag color="green" style={{ marginTop: 8 }}>Fast Mode (UI-safe)</Tag>
-            )}
-            {mode === "real" && (
-              <Tag color="blue" style={{ marginTop: 8 }}>Real Mode (Full SimPy)</Tag>
-            )}
-          </Form.Item>
+            </Form.Item>
 
-          <Divider orientation="left">Stations Configuration</Divider>
-          
-          <div style={{ marginBottom: 16 }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <div>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: 8, 
+                fontWeight: 600, 
+                color: 'var(--color-text-primary)',
+                fontSize: 14
+              }}>
+                Simulation Mode
+              </label>
+              <div style={{
+                padding: 16,
+                background: 'var(--color-bg-subtle)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                border: '1px solid var(--color-border-light)'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: 14, color: 'var(--color-text-primary)' }}>
+                    {mode === 'real' ? 'Real Simulation' : 'Fast Mode'}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 2 }}>
+                    {mode === 'real' ? 'Full SimPy engine' : 'Instant results'}
+                  </div>
+                </div>
+                <Switch 
+                  checked={mode === "real"}
+                  onChange={(checked) => setMode(checked ? "real" : "fake")}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Divider style={{ margin: '32px 0', borderColor: 'var(--color-border-light)' }} />
+
+          {/* Stations Section */}
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 16,
+              letterSpacing: '-0.01em'
+            }}>
+              Station Configuration
+              <span style={{ 
+                fontSize: 13, 
+                fontWeight: 500, 
+                color: 'var(--color-text-tertiary)',
+                marginLeft: 8
+              }}>
+                ({stations.length} station{stations.length !== 1 ? 's' : ''})
+              </span>
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {stations.map((station, index) => (
-                <Card 
-                  key={index} 
-                  size="small"
-                  extra={
-                    stations.length > 1 && (
-                      <Button 
-                        type="text" 
-                        danger 
-                        size="small"
-                        onClick={() => removeStation(index)}
-                      >
-                        Remove
-                      </Button>
-                    )
-                  }
+                <div
+                  key={index}
+                  style={{
+                    padding: 16,
+                    background: 'var(--color-bg-subtle)',
+                    border: '1px solid var(--color-border-light)',
+                    borderRadius: 'var(--radius-lg)',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto',
+                    gap: 16,
+                    alignItems: 'start'
+                  }}
                 >
-                  <Row gutter={16}>
-                    <Col span={8}>
-                      <strong>ID:</strong> {station.station_id}
-                    </Col>
-                    <Col span={8}>
-                      <strong>Lat:</strong> {station.lat.toFixed(4)}
-                    </Col>
-                    <Col span={8}>
-                      <strong>Lon:</strong> {station.lon.toFixed(4)}
-                    </Col>
-                  </Row>
-                  <Row gutter={16} style={{ marginTop: 8 }}>
-                    <Col span={8}>
-                      <Tag color="blue">{station.zone_id}</Tag>
-                    </Col>
-                    <Col span={8}>
-                      <strong>Chargers:</strong> {station.chargers_total}
-                    </Col>
-                    <Col span={8}>
-                      <strong>Active:</strong> {station.chargers_active}
-                    </Col>
-                  </Row>
-                </Card>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', 
+                    gap: 12
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                        Station ID
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'monospace', color: 'var(--color-text-primary)' }}>
+                        {station.station_id}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                        Location
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                        {station.lat.toFixed(4)}, {station.lon.toFixed(4)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                        Zone
+                      </div>
+                      <div style={{
+                        display: 'inline-block',
+                        padding: '2px 8px',
+                        background: 'rgba(59, 130, 246, 0.1)',
+                        color: 'var(--color-accent-primary)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: 12,
+                        fontWeight: 500
+                      }}>
+                        {station.zone_id}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                        Chargers
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                        {station.chargers_active} / {station.chargers_total}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {stations.length > 1 && (
+                    <Button 
+                      type="text" 
+                      danger
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      onClick={() => removeStation(index)}
+                      style={{
+                        borderRadius: 'var(--radius-md)'
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
               ))}
-            </Space>
+            </div>
+
             <Button 
               type="dashed" 
               icon={<PlusOutlined />} 
               onClick={addStation}
-              style={{ width: '100%', marginTop: 16 }}
+              style={{ 
+                width: '100%', 
+                marginTop: 12,
+                height: 40,
+                borderRadius: 'var(--radius-md)',
+                borderStyle: 'dashed',
+                borderColor: 'var(--color-border-medium)'
+              }}
             >
               Add Station
             </Button>
           </div>
 
+          {/* Interventions */}
           <Form.Item
-            label="Interventions (JSON, optional)"
+            label={<span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Interventions (JSON, optional)</span>}
             name="interventions"
+            extra={<span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Define station additions, capacity upgrades, or operational changes</span>}
           >
             <TextArea 
               rows={6}
               placeholder={`{\n  "add_stations": [...],\n  "modify_chargers": {...}\n}`}
-              style={{ fontFamily: 'monospace' }}
+              style={{ 
+                fontFamily: 'monospace',
+                fontSize: 13,
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--color-bg-subtle)'
+              }}
             />
           </Form.Item>
 
-          <Form.Item>
+          {/* Submit Button */}
+          <Form.Item style={{ marginBottom: 0, marginTop: 32 }}>
             <Button 
               type="primary" 
               htmlType="submit" 
@@ -223,12 +330,18 @@ function ScenarioSubmission() {
               icon={<SendOutlined />}
               size="large"
               block
+              style={{
+                height: 48,
+                fontSize: 15,
+                fontWeight: 600,
+                borderRadius: 'var(--radius-lg)'
+              }}
             >
-              Submit Scenario
+              {loading ? 'Submitting Scenario...' : 'Submit Scenario'}
             </Button>
           </Form.Item>
         </Form>
-      </Card>
+      </div>
     </div>
   )
 }

@@ -297,19 +297,39 @@ function SimulationScene() {
   }, [stationStates])
 
   return (
-    <div style={PAGE_WRAP_STYLE}>
+    <div style={{ ...PAGE_WRAP_STYLE, maxWidth: 1200 }}>
       {/* Scene header */}
-      <div style={HEADER_STYLE}>
-        <h1 style={TITLE_STYLE}>City Simulation Scene</h1>
-        <p style={SUBTITLE_STYLE}>
-          Queue length, charging activity, and station state are visualized without numbers. Busy stations appear dense;
-          idle stations appear calm.
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ 
+          fontSize: 32,
+          fontWeight: 700,
+          color: 'var(--color-text-primary)',
+          marginBottom: 8,
+          letterSpacing: '-0.02em',
+          margin: 0
+        }}>
+          Live Simulation View
+        </h1>
+        <p style={{ 
+          margin: '8px 0 0', 
+          color: 'var(--color-text-secondary)', 
+          maxWidth: 720,
+          fontSize: 15,
+          lineHeight: 1.6
+        }}>
+          Stations visualize queue pressure, charging activity, and operational state in real time.
+          Visual density indicates system load without explicit metrics.
         </p>
       </div>
 
       {/* City canvas */}
       <div
-        style={CANVAS_STYLE}
+        style={{
+          ...CANVAS_STYLE,
+          border: '1px solid var(--color-border-light)',
+          boxShadow: 'var(--shadow-md)',
+          background: 'linear-gradient(135deg, #f0f9ff 0%, #f8fafc 50%, #f0fdf4 100%)'
+        }}
       >
         {/* Subtle grid to imply city blocks (no maps, no metrics) */}
         <div

@@ -1,12 +1,6 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
-import { Layout, Menu } from 'antd'
-import {
-  ExperimentOutlined,
-  DashboardOutlined,
-  HistoryOutlined,
-  EnvironmentOutlined,
-} from '@ant-design/icons'
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { Layout } from 'antd'
 import ScenarioSubmission from './pages/ScenarioSubmission'
 import JobMonitor from './pages/JobMonitor'
 import ResultsDashboard from './pages/ResultsDashboard'
@@ -16,36 +10,78 @@ import './App.css'
 
 const { Header, Content, Footer } = Layout
 
+const NAV_ITEMS = [
+  { key: 'home', path: '/', label: 'Overview' },
+  { key: 'simulation', path: '/simulation', label: 'Live View' },
+  { key: 'submit', path: '/submit', label: 'New Scenario' },
+  { key: 'monitor', path: '/monitor', label: 'Jobs' },
+  { key: 'results', path: '/results', label: 'Results' },
+]
+
+function Navigation() {
+  const location = useLocation()
+  const currentPath = location.pathname
+
+  return (
+    <nav style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {NAV_ITEMS.map(item => {
+        const isActive = currentPath === item.path || 
+                        (item.path !== '/' && currentPath.startsWith(item.path))
+        return (
+          <Link
+            key={item.key}
+            to={item.path}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: isActive ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)',
+              background: isActive ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+              textDecoration: 'none',
+              transition: 'all 160ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+              display: 'inline-block'
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.background = 'var(--color-bg-subtle)'
+                e.currentTarget.style.color = 'var(--color-text-primary)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) {
+                e.currentTarget.style.background = 'transparent'
+                e.currentTarget.style.color = 'var(--color-text-secondary)'
+              }
+            }}
+          >
+            {item.label}
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
 function App() {
   return (
     <Router>
       <Layout className="app-layout">
-        <Header style={{ display: 'flex', alignItems: 'center' }}>
-          <div className="logo" style={{ color: 'white', fontSize: '20px', fontWeight: 'bold', marginRight: '50px' }}>
-            🔋 Digital Twin Sandbox
+        <Header style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          padding: '0 32px',
+          background: 'var(--color-bg-elevated)',
+          borderBottom: '1px solid var(--color-border-light)',
+          height: '64px',
+          lineHeight: '64px'
+        }}>
+          <div className="logo">
+            <div className="logo-icon">DT</div>
+            <span>Digital Twin</span>
           </div>
-          <Menu
-            theme="dark"
-            mode="horizontal"
-            defaultSelectedKeys={['home']}
-            style={{ flex: 1, minWidth: 0 }}
-          >
-            <Menu.Item key="home" icon={<DashboardOutlined />}>
-              <Link to="/">Home</Link>
-            </Menu.Item>
-            <Menu.Item key="simulation" icon={<EnvironmentOutlined />}>
-              <Link to="/simulation">Simulation</Link>
-            </Menu.Item>
-            <Menu.Item key="submit" icon={<ExperimentOutlined />}>
-              <Link to="/submit">Submit Scenario</Link>
-            </Menu.Item>
-            <Menu.Item key="monitor" icon={<HistoryOutlined />}>
-              <Link to="/monitor">Job Monitor</Link>
-            </Menu.Item>
-            <Menu.Item key="results" icon={<EnvironmentOutlined />}>
-              <Link to="/results">Results</Link>
-            </Menu.Item>
-          </Menu>
+          <Navigation />
         </Header>
         
         <Content className="content-wrapper">
@@ -59,9 +95,15 @@ function App() {
           </Routes>
         </Content>
         
-        <Footer style={{ textAlign: 'center' }}>
-          Digital Twin Simulation Sandbox ©{new Date().getFullYear()} | 
-          Built with React + FastAPI
+        <Footer style={{ 
+          textAlign: 'center',
+          background: 'var(--color-bg-elevated)',
+          borderTop: '1px solid var(--color-border-light)',
+          color: 'var(--color-text-tertiary)',
+          fontSize: '13px',
+          padding: '24px 32px'
+        }}>
+          Digital Twin Simulation Platform © {new Date().getFullYear()} · Built with React + FastAPI
         </Footer>
       </Layout>
     </Router>
