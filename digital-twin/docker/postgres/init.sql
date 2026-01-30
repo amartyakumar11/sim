@@ -1,4 +1,4 @@
-﻿-- Initialize database for Digital Twin Simulation Sandbox
+-- Initialize database for Digital Twin Simulation Sandbox
 
 GRANT ALL PRIVILEGES ON DATABASE twin TO twin_user;
 
