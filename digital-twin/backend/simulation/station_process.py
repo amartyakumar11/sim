@@ -5,6 +5,7 @@ Manages station operations using SimPy resources for swap bays and chargers.
 """
 
 from typing import Optional
+from datetime import datetime, timedelta
 import simpy
 from .rider import Rider
 from .inventory_manager import InventoryManager
@@ -25,7 +26,10 @@ class StationProcess:
         swap_bays_count: int,
         chargers_count: int,
         inventory_manager: InventoryManager,
-        event_logger: EventLogger
+        event_logger: EventLogger,
+        swap_time_sec: int = 180,
+        queue_limit: int = None,
+        simulation_start_time: Optional[datetime] = None
     ):
         """
         Initialize station process.
@@ -37,6 +41,9 @@ class StationProcess:
             chargers_count: Number of chargers available
             inventory_manager: InventoryManager instance
             event_logger: EventLogger instance for logging events
+            swap_time_sec: Time in seconds for a swap operation
+            queue_limit: Maximum queue length (None = unlimited)
+            simulation_start_time: Simulation start datetime (for timestamp calculation)
         """
         self.station_id = station_id
         self.env = env
@@ -44,10 +51,20 @@ class StationProcess:
         self.chargers = simpy.Resource(env, capacity=chargers_count)
         self.inventory_manager = inventory_manager
         self.event_logger = event_logger
-
-        # TODO: Add priority queue for riders
-        # TODO: Add fairness policies
-        # TODO: Add service time distributions
+        self.swap_time_sec = swap_time_sec
+        self.queue_limit = queue_limit if queue_limit is not None else (swap_bays_count * 3)
+        self.simulation_start_time = simulation_start_time
+        
+        # Track current queue length for capacity checks
+        self.current_queue_length = 0
+    
+    def get_current_simtime_iso(self) -> str:
+        """Get current simulation time as ISO 8601 string."""
+        if self.simulation_start_time is None:
+            return datetime.utcnow().isoformat() + 'Z'
+        
+        current_sim_time = self.simulation_start_time + timedelta(minutes=self.env.now)
+        return current_sim_time.isoformat() + 'Z'
 
     def can_accept_rider(self) -> bool:
         """
@@ -55,20 +72,11 @@ class StationProcess:
 
         Returns:
             True if station can accept rider, False otherwise
-
-        TODO: Implement actual capacity checks
-        TODO: Check swap bay availability
-        TODO: Check inventory availability
-        TODO: Check queue length limits
-        TODO: Consider station status (up/down)
         """
-        # TODO: Check if swap bays are available
-        # TODO: Check if inventory is available
-        # TODO: Check queue length vs capacity
-        # TODO: Check station status
-        # TODO: Return True if all conditions met
-
-        # Placeholder: always return True
+        # Check if queue is at capacity
+        if self.current_queue_length >= self.queue_limit:
+            return False
+        
         return True
 
     def handle_rider(self, rider: Rider):
@@ -79,36 +87,38 @@ class StationProcess:
             rider: Rider instance to handle
 
         Yields:
-            SimPy events (placeholder)
-
-        TODO: Implement actual rider handling logic
-        TODO: Check if station can accept rider
-        TODO: Add to queue or reject
-        TODO: Emit appropriate events
+            SimPy events
         """
-        # TODO: Check can_accept_rider()
-        # TODO: If accepted, add to queue
-        # TODO: If rejected, mark rider as lost or reroute
-        # TODO: Emit station_accept_rider or station_reject_rider event
-        # TODO: Yield to SimPy environment
-
-        if self.can_accept_rider():
-            self.event_logger.log_event(
-                event_type="queue_join",
-                station_id=self.station_id,
-                rider_id=rider.id
-            )
-            # Placeholder: yield immediately
-            yield self.env.timeout(0)
-        else:
+        print(f"[DEBUG] handle_rider called for {rider.id} at station {self.station_id}")
+        print(f"[DEBUG] can_accept_rider: queue={self.current_queue_length}, limit={self.queue_limit}")
+        
+        # Check if station can accept rider
+        if not self.can_accept_rider():
+            # Reject rider - queue is full
+            print(f"[DEBUG] Rejecting {rider.id} - queue full")
             self.event_logger.log_event(
                 event_type="lost_swap",
                 station_id=self.station_id,
                 rider_id=rider.id,
-                metadata={"reason": "station_full"}
+                metadata={"reason": "queue_full"},
+                timestamp=self.get_current_simtime_iso()
             )
             rider.mark_lost()
+            # Must yield something even when rejecting
             yield self.env.timeout(0)
+            return
+        
+        # Accept rider into queue
+        self.current_queue_length += 1
+        print(f"[DEBUG] Accepted {rider.id}, queue now = {self.current_queue_length}")
+        
+        # Process swap (this handles queue_join logging and waiting)
+        print(f"[DEBUG] Calling process_swap for {rider.id}")
+        yield from self.process_swap(rider)
+        print(f"[DEBUG] process_swap completed for {rider.id}")
+        
+        # Rider has left (either served or lost due to stockout)
+        self.current_queue_length = max(0, self.current_queue_length - 1)
 
     def process_swap(self, rider: Rider):
         """
@@ -118,53 +128,81 @@ class StationProcess:
             rider: Rider instance to serve
 
         Yields:
-            SimPy events (placeholder)
-
-        TODO: Implement actual swap processing logic
-        TODO: Acquire swap bay resource
-        TODO: Check inventory availability
-        TODO: Consume battery from inventory
-        TODO: Process swap operation
-        TODO: Release swap bay resource
-        TODO: Emit swap events
+            SimPy events
         """
-        # TODO: Acquire swap bay resource (with timeout)
-        # TODO: Check inventory availability
-        # TODO: Consume battery if available
-        # TODO: If no battery, handle stockout
-        # TODO: Process swap (wait for service time)
-        # TODO: Release swap bay
-        # TODO: Emit swap_started and swap_completed events
-        # TODO: Yield to SimPy environment
+        from datetime import timedelta
+        
+        print(f"[DEBUG] process_swap: env.now={self.env.now}, rider.arrival_offset={rider.arrival_offset_minutes}")
+        print(f"[DEBUG] process_swap: logging queue_join for {rider.id}")
+        # Log queue_join when rider enters the queue (before waiting for resource)
+        simtime_iso = self.get_current_simtime_iso()
+        print(f"[DEBUG] process_swap: simtime_iso={simtime_iso}")
+        self.event_logger.log_event(
+            event_type="queue_join",
+            station_id=self.station_id,
+            rider_id=rider.id,
+            timestamp=simtime_iso
+        )
+        print(f"[DEBUG] process_swap: queue_join logged")
+        
+        # Wait for available swap bay resource
+        print(f"[DEBUG] process_swap: requesting bay")
+        bay_request = self.swap_bays.request()
+        print(f"[DEBUG] process_swap: yielding for bay")
+        yield bay_request
+        print(f"[DEBUG] process_swap: got bay, env.now={self.env.now}")
+        
+        try:
+            # Rider got swap bay - service starts now
+            # Calculate absolute time: arrival_time + time waited
+            wait_duration_minutes = self.env.now - rider.arrival_offset_minutes
+            rider.start_service_time = rider.arrival_time + timedelta(minutes=wait_duration_minutes)
+            print(f"[DEBUG] process_swap: calculated start_service_time, wait_duration={wait_duration_minutes:.2f}")
 
-        # Placeholder: acquire swap bay
-        with self.swap_bays.request() as bay_request:
-            yield bay_request
-
+            # Emit swap_start event with simulation timestamp
             self.event_logger.log_event(
                 event_type="swap_start",
                 station_id=self.station_id,
-                rider_id=rider.id
+                rider_id=rider.id,
+                timestamp=self.get_current_simtime_iso()
             )
+            print(f"[DEBUG] process_swap: swap_start logged")
 
-            # Check inventory
-            if self.inventory_manager.consume(self.station_id):
-                # Placeholder: process swap (no actual time yet)
-                yield self.env.timeout(0)
-
-                self.event_logger.log_event(
-                    event_type="swap_complete",
-                    station_id=self.station_id,
-                    rider_id=rider.id
-                )
-            else:
-                # Inventory stockout
+            # Check inventory availability
+            if not self.inventory_manager.consume(self.station_id):
+                # Inventory stockout - cannot serve rider
+                print(f"[DEBUG] process_swap: inventory stockout!")
                 self.event_logger.log_event(
                     event_type="inventory_stockout",
                     station_id=self.station_id,
-                    rider_id=rider.id
+                    rider_id=rider.id,
+                    timestamp=self.get_current_simtime_iso()
                 )
                 rider.mark_lost()
+                return
+            
+            print(f"[DEBUG] process_swap: inventory consumed, starting swap")
+            # Perform swap (takes swap_time_sec seconds of simulated time)
+            # Convert seconds to minutes for SimPy
+            swap_time_minutes = self.swap_time_sec / 60.0
+            yield self.env.timeout(swap_time_minutes)
+            print(f"[DEBUG] process_swap: swap timeout complete, env.now={self.env.now}")
+            
+            # Swap complete
+            rider.end_service_time = rider.start_service_time + timedelta(seconds=self.swap_time_sec)
+            rider.status = rider.status.__class__.SERVED
+            
+            self.event_logger.log_event(
+                event_type="swap_complete",
+                station_id=self.station_id,
+                rider_id=rider.id,
+                timestamp=self.get_current_simtime_iso()
+            )
+            print(f"[DEBUG] process_swap: swap_complete logged, rider status={rider.status.value}")
+        finally:
+            # Release swap bay
+            self.swap_bays.release(bay_request)
+            print(f"[DEBUG] process_swap: released bay")
 
     def snapshot(self) -> dict:
         """

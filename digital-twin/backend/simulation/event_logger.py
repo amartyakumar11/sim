@@ -54,7 +54,8 @@ class EventLogger:
         station_id: Optional[str] = None,
         rider_id: Optional[str] = None,
         battery_id: Optional[str] = None,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
+        timestamp: Optional[str] = None
     ):
         """
         Log an event to the output file in NDJSON format.
@@ -65,6 +66,7 @@ class EventLogger:
             rider_id: Optional rider identifier
             battery_id: Optional battery identifier
             metadata: Optional dictionary with additional event data
+            timestamp: Optional ISO 8601 timestamp (defaults to current UTC time)
 
         Raises:
             ValueError: If event_type is not in the allowed list
@@ -79,8 +81,9 @@ class EventLogger:
         # Generate event_id as UUID
         event_id = str(uuid.uuid4())
 
-        # Generate ISO 8601 timestamp
-        timestamp = datetime.utcnow().isoformat() + 'Z'
+        # Use provided timestamp or generate current UTC timestamp
+        if timestamp is None:
+            timestamp = datetime.utcnow().isoformat() + 'Z'
 
         # Build event object matching schema
         event = {

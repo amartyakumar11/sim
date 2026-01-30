@@ -213,44 +213,45 @@ class DemandGenerator:
         Args:
             config: Configuration dictionary containing:
                 - "rng_seed": int (for deterministic RNG)
-                - "base_demand_rate": float (arrivals per hour)
+                - "base_demand_rate_per_min": float (arrivals per minute)
                 - "time_of_day_curve": dict (TimeOfDayCurve config)
                 - "weather_config": dict (WeatherModifier config)
                 - "events_config": list[dict] (EventModifier config)
                 - "station_weights": dict (StationSkewModel config)
             stations: List of Station instances
             event_logger: EventLogger instance for logging events
-
-        TODO: Add validation for config structure
-        TODO: Initialize all modifier components
-        TODO: Set up RNG with seed
         """
         self.event_logger = event_logger
         self.stations = stations
+
+        if not stations or len(stations) == 0:
+            raise ValueError("At least one station is required")
 
         # Initialize RNG with seed for determinism
         rng_seed = config.get("rng_seed", 42)
         self.rng = random.Random(rng_seed)
 
-        # Base demand rate (arrivals per hour)
-        self.base_demand_rate = config.get("base_demand_rate", 10.0)
+        # Base demand rate (arrivals per minute)
+        self.base_demand_rate_per_min = config.get("base_demand_rate_per_min", 0.167)  # ~10/hour default
+        
+        if self.base_demand_rate_per_min <= 0:
+            raise ValueError("base_demand_rate_per_min must be > 0")
 
-        # Initialize modifiers
+        # Initialize modifiers (Level 1: not used, but keep infrastructure)
         self.time_of_day_curve = TimeOfDayCurve(config.get("time_of_day_curve", {}))
         self.weather_modifier = WeatherModifier(config.get("weather_config", {}))
         self.event_modifier = EventModifier(config.get("events_config", []))
         self.station_skew = StationSkewModel(config.get("station_weights", {}))
 
-        # Current weather state (TODO: integrate with weather service)
+        # Current weather state (Level 1: not used)
         self.current_weather = config.get("current_weather", "sunny")
-
-        # TODO: Validate base_demand_rate > 0
-        # TODO: Validate stations list is not empty
-        # TODO: Initialize arrival counter for rider_id generation
+        
+        # Arrival counter for unique rider IDs
+        self.arrival_counter = 0
 
     def generate_arrivals(self, start_time: datetime, end_time: datetime) -> list[dict]:
         """
-        Generate rider arrivals between start_time and end_time.
+        Generate rider arrivals between start_time and end_time using Poisson process.
 
         Args:
             start_time: Start datetime
@@ -262,69 +263,40 @@ class DemandGenerator:
                 - "rider_id": str
                 - "station_id": str
                 - "metadata": dict
-
-        TODO: Implement Poisson process for arrival generation
-        TODO: Apply all modifiers (time, weather, events)
-        TODO: Select stations based on skew weights
-        TODO: Log rider_arrival events
-        TODO: Return arrival list for SimPy integration
         """
         arrivals = []
         current_time = start_time
-
-        # TODO: Generate arrivals using Poisson process
-        # TODO: While current_time < end_time:
-        # TODO:   Calculate next arrival time using exponential distribution
-        # TODO:   Apply time-of-day multiplier
-        # TODO:   Apply weather multiplier
-        # TODO:   Apply event multiplier
-        # TODO:   Adjust arrival rate based on combined multiplier
-        # TODO:   Generate rider_id
-        # TODO:   Select station using weighted selection
-        # TODO:   Log rider_arrival event
-        # TODO:   Add to arrivals list
-        # TODO:   Advance current_time
-
-        # Placeholder: generate a single arrival for now
-        if current_time < end_time:
-            rider_id = f"rider_{self.rng.randint(1000, 9999)}"
+        
+        # Generate arrivals using Poisson process (exponential inter-arrival times)
+        while current_time < end_time:
+            # Sample inter-arrival time from exponential distribution
+            # Rate parameter is lambda (arrivals per minute)
+            # Inter-arrival time ~ Exp(lambda), mean = 1/lambda minutes
+            inter_arrival_minutes = self.rng.expovariate(self.base_demand_rate_per_min)
+            
+            # Advance time
+            current_time = current_time + timedelta(minutes=inter_arrival_minutes)
+            
+            # Check if still within simulation window
+            if current_time >= end_time:
+                break
+            
+            # Generate unique rider ID
+            self.arrival_counter += 1
+            rider_id = f"rider_{self.arrival_counter:06d}"
+            
+            # Select station (deterministic round-robin for Level 1)
             station = self.select_station()
-
-            # Get multipliers for metadata
-            tod_multiplier = self.time_of_day_curve.get_multiplier(current_time)
-            weather_multiplier = self.weather_modifier.get_multiplier(self.current_weather)
-            event_multiplier = self.event_modifier.get_multiplier(current_time)
-            station_weight = self.station_skew.get_weight(station.station_id)
-
-            # Log rider_arrival event
-            self.event_logger.log_event(
-                event_type="rider_arrival",
-                station_id=station.station_id,
-                rider_id=rider_id,
-                metadata={
-                    "timestamp": current_time.isoformat(),
-                    "weather_state": self.current_weather,
-                    "tod_multiplier": tod_multiplier,
-                    "weather_multiplier": weather_multiplier,
-                    "event_multiplier": event_multiplier,
-                    "station_weight": station_weight
-                }
-            )
-
+            
+            # Create arrival record
             arrival = {
                 "timestamp": current_time,
                 "rider_id": rider_id,
                 "station_id": station.station_id,
-                "metadata": {
-                    "weather_state": self.current_weather,
-                    "tod_multiplier": tod_multiplier,
-                    "weather_multiplier": weather_multiplier,
-                    "event_multiplier": event_multiplier,
-                    "station_weight": station_weight
-                }
+                "metadata": {}
             }
             arrivals.append(arrival)
-
+        
         return arrivals
 
     def next_arrival_time(self, current_time: datetime) -> datetime:
@@ -353,24 +325,18 @@ class DemandGenerator:
 
     def select_station(self) -> Station:
         """
-        Select a station based on skew weights.
+        Select a station deterministically (round-robin for Level 1).
 
         Returns:
             Selected Station instance
-
-        TODO: Implement weighted random selection
-        TODO: Normalize weights
-        TODO: Use RNG for selection
         """
-        # TODO: Get weights for all stations
-        # TODO: Normalize weights to probabilities
-        # TODO: Use RNG to select station based on weights
-        # TODO: Return selected station
-
-        # Placeholder: return first station
         if not self.stations:
             raise ValueError("No stations available")
-        return self.stations[0]
+        
+        # Level 1: Simple round-robin selection
+        # Use arrival counter to distribute evenly
+        station_index = self.arrival_counter % len(self.stations)
+        return self.stations[station_index]
 
     def snapshot(self) -> dict:
         """

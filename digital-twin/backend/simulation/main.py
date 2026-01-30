@@ -11,6 +11,191 @@ import json
 import tempfile
 import os
 
+
+def build_real_simulation_config(raw_config: dict) -> dict:
+    """
+    Adapt user / API / Celery config into a Level 1 REAL simulation config.
+    
+    This function transforms raw incoming config into a complete, deterministic,
+    validated configuration that is safe for SimPy and independent of frontend/Celery shape.
+    
+    Args:
+        raw_config: Raw configuration from API/Celery/tests
+        
+    Returns:
+        Normalized config dict with structure:
+        {
+            "metadata": {...},
+            "simulation": {...},
+            "stations": [...],
+            "demand": {...},
+            "routing": {...}
+        }
+        
+    Raises:
+        ValueError: On invalid or incomplete input
+    """
+    # 1️⃣ Extract and validate metadata
+    metadata = {}
+    
+    if "run_id" not in raw_config:
+        raise ValueError("run_id is required")
+    metadata["run_id"] = raw_config["run_id"]
+    
+    metadata["city"] = raw_config.get("city", "unknown")
+    
+    if "seed" in raw_config:
+        try:
+            metadata["seed"] = int(raw_config["seed"])
+        except (ValueError, TypeError):
+            raise ValueError("seed must be an integer")
+    else:
+        metadata["seed"] = 42
+    
+    metadata["description"] = raw_config.get("description", "")
+    
+    # 2️⃣ Parse and normalize simulation window
+    simulation = {}
+    
+    start_time = raw_config.get("start_time")
+    end_time = raw_config.get("end_time")
+    
+    # Parse datetime strings if needed
+    if isinstance(start_time, str):
+        try:
+            start_time = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        except ValueError:
+            raise ValueError("start_time must be valid ISO 8601 datetime")
+    
+    if isinstance(end_time, str):
+        try:
+            end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+        except ValueError:
+            raise ValueError("end_time must be valid ISO 8601 datetime")
+    
+    if start_time is None or end_time is None:
+        raise ValueError("start_time and end_time are required")
+    
+    if not isinstance(start_time, datetime) or not isinstance(end_time, datetime):
+        raise ValueError("start_time and end_time must be datetime objects or ISO strings")
+    
+    if end_time <= start_time:
+        raise ValueError("end_time must be after start_time")
+    
+    duration_minutes = int((end_time - start_time).total_seconds() / 60)
+    
+    if duration_minutes <= 0:
+        raise ValueError("Simulation duration must be > 0")
+    
+    simulation["start_time"] = start_time
+    simulation["end_time"] = end_time
+    simulation["duration_minutes"] = duration_minutes
+    
+    # 3️⃣ Normalize stations
+    raw_stations = raw_config.get("city_config", {}).get("stations")
+    
+    if not raw_stations or len(raw_stations) == 0:
+        raise ValueError("At least one station is required")
+    
+    stations = []
+    
+    for idx, raw_station in enumerate(raw_stations):
+        station = {}
+        
+        if "station_id" not in raw_station:
+            raise ValueError(f"Station {idx}: station_id is required")
+        station["station_id"] = raw_station["station_id"]
+        
+        station["zone_id"] = raw_station.get("zone_id", "Z1")
+        
+        # Coordinate normalization (handle both lat/lon and latitude/longitude)
+        if "latitude" in raw_station:
+            station["latitude"] = float(raw_station["latitude"])
+        elif "lat" in raw_station:
+            station["latitude"] = float(raw_station["lat"])
+        else:
+            raise ValueError(f"Station {idx}: latitude missing")
+        
+        if "longitude" in raw_station:
+            station["longitude"] = float(raw_station["longitude"])
+        elif "lon" in raw_station:
+            station["longitude"] = float(raw_station["lon"])
+        else:
+            raise ValueError(f"Station {idx}: longitude missing")
+        
+        # Capacity
+        swap_bays = raw_station.get("swap_bays", raw_station.get("chargers_total", 0))
+        station["swap_bays"] = int(swap_bays)
+        if station["swap_bays"] <= 0:
+            raise ValueError(f"Station {idx}: swap_bays must be >= 1")
+        
+        # Queue
+        station["queue_limit"] = int(raw_station.get("queue_limit", station["swap_bays"] * 3))
+        
+        # Inventory
+        station["inventory_current"] = int(
+            raw_station.get("inventory_current", station["swap_bays"] * 10)
+        )
+        station["inventory_capacity"] = int(
+            raw_station.get("inventory_capacity", int(station["inventory_current"] * 1.5))
+        )
+        
+        if station["inventory_current"] > station["inventory_capacity"]:
+            raise ValueError(f"Station {idx}: inventory_current exceeds capacity")
+        
+        # Timing
+        station["swap_time_sec"] = int(raw_station.get("swap_time_sec", 180))
+        
+        # Status
+        station["status"] = raw_station.get("status", "up")
+        
+        # Costs
+        costs = raw_station.get("costs", {})
+        station["costs"] = {
+            "fixed_cost_per_day": float(costs.get("fixed_cost_per_day", 0)),
+            "energy_cost_per_swap": float(costs.get("energy_cost_per_swap", 0)),
+            "lost_swap_penalty": float(costs.get("lost_swap_penalty", 0))
+        }
+        
+        # Add chargers for compatibility
+        station["chargers_total"] = int(raw_station.get("chargers_total", station["swap_bays"]))
+        
+        stations.append(station)
+    
+    # 4️⃣ Demand block
+    raw_demand = raw_config.get("demand")
+    
+    if raw_demand is None:
+        raise ValueError("Demand configuration is required")
+    
+    demand = {}
+    
+    if "base_demand_rate_per_min" not in raw_demand:
+        raise ValueError("base_demand_rate_per_min is required in demand config")
+    
+    demand["base_demand_rate_per_min"] = float(raw_demand["base_demand_rate_per_min"])
+    
+    if demand["base_demand_rate_per_min"] <= 0:
+        raise ValueError("Demand rate must be > 0")
+    
+    demand["model"] = "poisson"
+    
+    # 5️⃣ Routing block (fixed for Level 1)
+    routing = {
+        "strategy": "deterministic"
+    }
+    
+    # 6️⃣ Final assembly
+    real_config = {
+        "metadata": metadata,
+        "simulation": simulation,
+        "stations": stations,
+        "demand": demand,
+        "routing": routing
+    }
+    
+    return real_config
+
 # Conditional imports for real mode
 try:
     from .simulation_engine import SimulationEngine
@@ -194,7 +379,7 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
     Run actual SimPy simulation.
 
     Args:
-        config: Configuration dictionary
+        config: Configuration dictionary (raw from API/Celery)
         seed: RNG seed for determinism
         city: City identifier
 
@@ -204,10 +389,18 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
     if not SIMPY_AVAILABLE:
         raise RuntimeError("SimPy not available - cannot run real simulation")
 
-    start_time = config.get("start_time", datetime.now())
-    end_time = config.get("end_time", datetime.now() + timedelta(hours=1))
-    # Generate deterministic run_id
-    run_id = f"run_{seed}_{int(start_time.timestamp())}"
+    # Build normalized config using adapter
+    normalized_config = build_real_simulation_config(config)
+    
+    # Extract normalized values
+    metadata = normalized_config["metadata"]
+    simulation = normalized_config["simulation"]
+    stations_config = normalized_config["stations"]
+    demand_config = normalized_config["demand"]
+    
+    start_time = simulation["start_time"]
+    end_time = simulation["end_time"]
+    run_id = metadata["run_id"]
 
     # Create temporary event log file
     temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.ndjson')
@@ -218,7 +411,6 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
         event_logger = EventLogger(temp_file.name)
 
         # Initialize components for SimulationEngine
-        # Note: SimulationEngine requires individual components, not a config dict
         from .inventory_manager import InventoryManager
         from .kpi_tracker import KPITracker
         from .network_graph import NetworkGraph
@@ -228,11 +420,11 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
         import simpy
 
         # Initialize inventory manager
-        inventory_config = config.get("inventory_config", {})
+        initial_inventory = {s["station_id"]: s["inventory_current"] for s in stations_config}
         inventory_manager = InventoryManager(
-            initial_inventory=inventory_config.get("initial_inventory", {}),
-            refill_threshold=inventory_config.get("refill_threshold", 5),
-            refill_amount=inventory_config.get("refill_amount", 10),
+            initial_inventory=initial_inventory,
+            refill_threshold=5,
+            refill_amount=10,
             event_logger=event_logger
         )
 
@@ -246,42 +438,47 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
         # Initialize stations
         stations: Dict[str, StationProcess] = {}
         env = simpy.Environment()
-        station_configs = config.get("stations", [])
         
-        for station_config in station_configs:
-            station_id = station_config.get("station_id")
-            if station_id:
-                # Create Station object
-                station = Station(station_config, event_logger)
-                network_graph.add_station(station)
+        for station_config in stations_config:
+            station_id = station_config["station_id"]
+            
+            # Create Station object
+            station = Station(station_config, event_logger)
+            network_graph.add_station(station)
 
-                # Create StationProcess
-                station_process = StationProcess(
-                    station_id=station_id,
-                    env=env,
-                    swap_bays_count=station.swap_bays,
-                    chargers_count=station.chargers_total,
-                    inventory_manager=inventory_manager,
-                    event_logger=event_logger
-                )
-                stations[station_id] = station_process
+            # Create StationProcess
+            station_process = StationProcess(
+                station_id=station_id,
+                env=env,
+                swap_bays_count=station_config["swap_bays"],
+                chargers_count=station_config.get("chargers_total", station_config["swap_bays"]),
+                inventory_manager=inventory_manager,
+                event_logger=event_logger,
+                swap_time_sec=station_config["swap_time_sec"],
+                queue_limit=station_config["queue_limit"],
+                simulation_start_time=start_time
+            )
+            stations[station_id] = station_process
 
         # Initialize demand generator
-        demand_config = config.get("demand_config", {})
-        demand_config["rng_seed"] = seed
+        demand_gen_config = {
+            "rng_seed": metadata["seed"],
+            "base_demand_rate_per_min": demand_config["base_demand_rate_per_min"]
+        }
         station_list = [network_graph.get_station(sid) for sid in stations.keys()]
         from .demand_generator import DemandGenerator
-        demand_generator = DemandGenerator(demand_config, station_list, event_logger)
+        demand_generator = DemandGenerator(demand_gen_config, station_list, event_logger)
 
         # Create simulation engine
         engine = SimulationEngine(
+            env=env,
             demand_generator=demand_generator,
             routing_engine=routing_engine,
             inventory_manager=inventory_manager,
             kpi_tracker=kpi_tracker,
             stations=stations,
             event_logger=event_logger,
-            rng_seed=seed
+            rng_seed=metadata["seed"]
         )
 
         # Run simulation
@@ -308,19 +505,19 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
     kpi_config = {
         "start_time": start_time,
         "end_time": end_time,
-        "stations": config.get("stations", [])
+        "stations": stations_config
     }
     kpi_engine = KPIEngine(events, kpi_config)
     kpis = kpi_engine.compute()
 
-    # Compute ROI from KPIs
+    # Compute ROI from KPIs (simplified for Level 1)
     roi_config = {
-        "revenue_per_swap": config.get("revenue_per_swap", 0.0),
-        "charger_energy_cost": config.get("charger_energy_cost", 0.0),
-        "station_staff_cost": config.get("station_staff_cost", 0.0),
-        "battery_depreciation_cost": config.get("battery_depreciation_cost", 0.0),
-        "infra_maintenance_cost": config.get("infra_maintenance_cost", 0.0),
-        "capital_cost": config.get("capital_cost", 0.0)
+        "revenue_per_swap": 500.0,  # Default value
+        "charger_energy_cost": 100.0,
+        "station_staff_cost": 200.0,
+        "battery_depreciation_cost": 50.0,
+        "infra_maintenance_cost": 50.0,
+        "capital_cost": 10000.0
     }
     roi_engine = ROIEngine(kpis, roi_config)
     roi_metrics = roi_engine.compute()
@@ -328,23 +525,100 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
     # Merge KPIs and ROI metrics
     final_kpis = {**kpis, **roi_metrics}
 
-    # Return schema-compliant results
-    # TODO: Generate timeseries from events
-    return {
+    # Generate minimal timeseries from events
+    timeseries = _generate_timeseries_from_events(events, stations_config, start_time, end_time)
+
+    # Write artifact files
+    data_dir = config.get("data_dir", "./data/results")
+    os.makedirs(data_dir, exist_ok=True)
+    
+    results = {
         "metadata": {
             "run_id": run_id,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
-            "seed": seed,
-            "city": city
+            "seed": metadata["seed"],
+            "city": metadata["city"]
         },
         "kpis": final_kpis,
-        "timeseries": {
-            "wait_time": [],
-            "inventory_levels": {},
-            "queue_lengths": {}
-        },
+        "timeseries": timeseries,
         "events": events
+    }
+    
+    # Write summary.json
+    summary_path = os.path.join(data_dir, "summary.json")
+    with open(summary_path, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
+
+    # Write events.ndjson
+    events_path = os.path.join(data_dir, "events.ndjson")
+    with open(events_path, 'w', encoding='utf-8') as f:
+        for event in events:
+            f.write(json.dumps(event, ensure_ascii=False) + '\n')
+
+    # Write frames.ndjson
+    frames_path = os.path.join(data_dir, "frames.ndjson")
+    with open(frames_path, 'w', encoding='utf-8') as f:
+        for idx, wt in enumerate(timeseries.get("wait_time", [])):
+            frame = {"t": idx, "wait_time": wt}
+            f.write(json.dumps(frame, ensure_ascii=False) + '\n')
+
+    return results
+
+
+def _generate_timeseries_from_events(events: List[dict], stations_config: List[dict], start_time: datetime, end_time: datetime) -> dict:
+    """
+    Generate minimal timeseries from event log.
+    
+    Reconstructs queue lengths and inventory levels over time per station.
+    """
+    # Initialize state tracking
+    station_ids = [s["station_id"] for s in stations_config]
+    inventory_by_station = {s["station_id"]: s["inventory_current"] for s in stations_config}
+    queue_by_station = {sid: 0 for sid in station_ids}
+    
+    # Time-series buckets (1-minute resolution)
+    duration_minutes = int((end_time - start_time).total_seconds() / 60)
+    inventory_series = {sid: [inventory_by_station[sid]] for sid in station_ids}
+    queue_series = {sid: [0] for sid in station_ids}
+    
+    # Sort events by timestamp
+    sorted_events = sorted(events, key=lambda e: e.get("timestamp", ""))
+    
+    current_minute = 0
+    for event in sorted_events:
+        station_id = event.get("station_id")
+        event_type = event.get("event_type")
+        
+        if not station_id or station_id not in station_ids:
+            continue
+        
+        # Update state based on event type
+        if event_type == "queue_join":
+            queue_by_station[station_id] += 1
+        elif event_type == "swap_start":
+            # Rider left queue, started swap
+            queue_by_station[station_id] = max(0, queue_by_station[station_id] - 1)
+        elif event_type == "swap_complete":
+            # Inventory was consumed during swap_start, not here
+            pass
+        elif event_type == "lost_swap":
+            # Rider left queue
+            queue_by_station[station_id] = max(0, queue_by_station[station_id] - 1)
+        elif event_type == "charge_complete":
+            # This is actually inventory consumption (misnamed in inventory_manager)
+            inventory_by_station[station_id] = max(0, inventory_by_station[station_id] - 1)
+    
+    # Sample state at each minute
+    for minute in range(1, min(duration_minutes, 60)):  # Limit to 60 samples
+        for sid in station_ids:
+            inventory_series[sid].append(inventory_by_station[sid])
+            queue_series[sid].append(queue_by_station[sid])
+    
+    return {
+        "wait_time": [],  # Not reconstructed from events (would need interpolation)
+        "inventory_levels": inventory_series,
+        "queue_lengths": queue_series
     }
 
 

@@ -2,7 +2,7 @@ from celery import Celery
 import os
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any
 
 # Import simulation function (black box as per contract)
@@ -124,13 +124,22 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
         os.makedirs(data_dir, exist_ok=True)
         
         # Prepare runtime config for simulation engine
+        simulation_duration = scenario_data.get("simulation_duration", 3600)
+        
         runtime_config = {
             "run_id": run_id,
             "data_dir": data_dir,
+            "seed": 42,  # Default seed
+            "city": scenario_data.get("city_config", {}).get("city", "unknown"),
+            "start_time": datetime.now(),
+            "end_time": datetime.now() + timedelta(seconds=simulation_duration),
             "city_config": scenario_data.get("city_config", {}),
             "interventions": scenario_data.get("interventions", {}),
-            "simulation_duration": scenario_data.get("simulation_duration", 3600),
-            "description": scenario_data.get("description", "")
+            "simulation_duration": simulation_duration,
+            "description": scenario_data.get("description", ""),
+            "demand": {
+                "base_demand_rate_per_min": 0.5  # Default: ~30 riders per hour
+            }
         }
         
         # Update progress

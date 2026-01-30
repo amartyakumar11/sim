@@ -31,16 +31,18 @@ class Rider:
         rider_id: str,
         arrival_time: datetime,
         assigned_station_id: str,
-        event_logger: EventLogger
+        event_logger: EventLogger,
+        arrival_offset_minutes: float = 0.0
     ):
         """
         Initialize a rider.
 
         Args:
             rider_id: Unique rider identifier
-            arrival_time: Time when rider arrived
+            arrival_time: Time when rider arrived (absolute datetime)
             assigned_station_id: Station assigned to serve this rider
             event_logger: EventLogger instance for logging events
+            arrival_offset_minutes: Arrival time offset in minutes from simulation start
         """
         self.id = rider_id
         self.arrival_time = arrival_time
@@ -49,18 +51,7 @@ class Rider:
         self.end_service_time: Optional[datetime] = None
         self.status = RiderStatus.WAITING
         self.event_logger = event_logger
-
-        # TODO: Add timeout configuration
-        # TODO: Add abandonment threshold
-        # TODO: Add reroute eligibility flags
-
-        # Log rider creation
-        self.event_logger.log_event(
-            event_type="rider_arrival",
-            station_id=assigned_station_id,
-            rider_id=rider_id,
-            metadata={"arrival_time": arrival_time.isoformat()}
-        )
+        self.arrival_offset_minutes = arrival_offset_minutes
 
     def wait(self, env: simpy.Environment):
         """
