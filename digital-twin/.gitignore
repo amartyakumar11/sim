@@ -1,10 +1,18 @@
 .env
 __pycache__/
 *.pyc
-backend/data/results/
 node_modules/
 dist/
 .next/
 backend/simulation/_verification.py
 skills/
-data/results/
+
+# Simulation result files (generated at runtime)
+# Keep the directory structure docs but ignore all generated files
+data/results/**
+!data/results/README.md
+!data/results/.gitkeep
+
+backend/data/results/**
+!backend/data/results/README.md
+!backend/data/results/.gitkeep
