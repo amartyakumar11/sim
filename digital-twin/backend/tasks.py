@@ -125,6 +125,7 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
         
         # Prepare runtime config for simulation engine
         simulation_duration = scenario_data.get("simulation_duration", 3600)
+        duration_minutes = scenario_data.get("duration_minutes", simulation_duration // 60)
         
         runtime_config = {
             "run_id": run_id,
@@ -136,10 +137,18 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
             "city_config": scenario_data.get("city_config", {}),
             "interventions": scenario_data.get("interventions", {}),
             "simulation_duration": simulation_duration,
+            "duration_minutes": duration_minutes,  # Add this for ROI calculations
             "description": scenario_data.get("description", ""),
             "demand": {
                 "base_demand_rate_per_min": 0.5  # Default: ~30 riders per hour
-            }
+            },
+            # Financial parameters (pass through from scenario)
+            "revenue_per_swap": scenario_data.get("revenue_per_swap", 50.0),
+            "charger_energy_cost": scenario_data.get("charger_energy_cost", 500.0),
+            "station_staff_cost": scenario_data.get("station_staff_cost", 2000.0),
+            "battery_depreciation_cost": scenario_data.get("battery_depreciation_cost", 1000.0),
+            "infra_maintenance_cost": scenario_data.get("infra_maintenance_cost", 500.0),
+            "capital_cost": scenario_data.get("capital_cost", 100000.0)
         }
         
         # Update progress
@@ -152,13 +161,33 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
         # Update progress
         _store_job_status(run_id, "running", "Processing results", 0.9)
         
-        # Prepare final result
+        # Extract result fields (simulation returns: metadata, kpis, timeseries, events)
+        kpis = simulation_result.get("kpis", {})
+        events = simulation_result.get("events", [])
+        timeseries = simulation_result.get("timeseries", {})
+        
+        # Calculate counts
+        events_count = len(events)
+        frames_count = len(timeseries.get("wait_time", []))
+        
+        # Prepare final result (map kpis -> summary for API compatibility)
+        # Map simulation KPI field names to API response field names
+        summary = {
+            "avg_wait_time": kpis.get("avg_wait_time"),
+            "lost_swaps": kpis.get("lost_swaps"),
+            "charger_utilization": kpis.get("utilization"),  # Map utilization -> charger_utilization
+            "idle_inventory": kpis.get("idle_inventory"),
+            "city_throughput": kpis.get("throughput"),  # Map throughput -> city_throughput
+            "total_cost_impact": kpis.get("operational_cost"),  # Map operational_cost -> total_cost_impact
+            "roi": kpis.get("roi")
+        }
+        
         final_result = {
             "run_id": run_id,
             "status": "completed",
-            "summary": simulation_result.get("summary", {}),
-            "events_count": simulation_result.get("events_count", 0),
-            "frames_count": simulation_result.get("frames_count", 0),
+            "summary": summary,
+            "events_count": events_count,
+            "frames_count": frames_count,
             "artifacts": {
                 "events": f"{data_dir}/events.ndjson",
                 "frames": f"{data_dir}/frames.ndjson", 

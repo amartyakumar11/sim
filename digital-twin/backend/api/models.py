@@ -47,6 +47,37 @@ class ScenarioRequest(BaseModel):
         default="fake",
         description="Simulation mode: 'fake' (fast, UI-safe) or 'real' (full SimPy simulation)"
     )
+    # Financial parameters (optional, with realistic defaults)
+    revenue_per_swap: Optional[float] = Field(
+        default=50.0,
+        ge=0.0,
+        description="Revenue earned per completed swap (currency units)"
+    )
+    charger_energy_cost: Optional[float] = Field(
+        default=500.0,
+        ge=0.0,
+        description="Total energy cost for charging (currency units)"
+    )
+    station_staff_cost: Optional[float] = Field(
+        default=2000.0,
+        ge=0.0,
+        description="Total staff salary costs (currency units)"
+    )
+    battery_depreciation_cost: Optional[float] = Field(
+        default=1000.0,
+        ge=0.0,
+        description="Battery depreciation cost (currency units)"
+    )
+    infra_maintenance_cost: Optional[float] = Field(
+        default=500.0,
+        ge=0.0,
+        description="Infrastructure maintenance cost (currency units)"
+    )
+    capital_cost: Optional[float] = Field(
+        default=100000.0,
+        ge=0.0,
+        description="Initial capital investment (currency units)"
+    )
 
 class ScenarioComparisonRequest(BaseModel):
     """Request model for scenario comparison"""

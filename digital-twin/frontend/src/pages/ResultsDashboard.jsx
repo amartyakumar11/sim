@@ -14,6 +14,7 @@ import {
   Button,
   Drawer,
   Table,
+  Tooltip,
 } from 'antd'
 import { 
   ClockCircleOutlined,
@@ -29,7 +30,7 @@ import {
   XAxis, 
   YAxis, 
   CartesianGrid, 
-  Tooltip, 
+  Tooltip as ChartTooltip, 
   Legend, 
   ResponsiveContainer 
 } from 'recharts'
@@ -78,6 +79,12 @@ function ResultsDashboard() {
   const retryTimerRef = useRef(null)
   const aliveRef = useRef(true)
 
+  // ALL HOOKS MUST BE AT THE TOP - before any conditional returns
+  const runIdShort = useMemo(() => {
+    const s = String(runIdFromParams || '')
+    return s.length > 10 ? `${s.substring(0, 8)}…` : s
+  }, [runIdFromParams])
+
   useEffect(() => {
     aliveRef.current = true
     return () => {
@@ -89,19 +96,42 @@ function ResultsDashboard() {
     }
   }, [runIdFromParams])
 
-  // Generate static mock timeseries only when user reveals data layer.
-  // (No live updates; no continuous visual animation.)
+  // Fetch REAL timeseries data from frames.ndjson when user reveals data layer
   useEffect(() => {
     if (!showDataLayer) return
     if (timeseriesData.length > 0) return
+    if (!result?.artifacts?.frames) return
 
-    const generated = Array.from({ length: 20 }, (_, i) => ({
-      time: i * 3,
-      wait_time: 5 + Math.random() * 10,
-      utilization: 0.4 + Math.random() * 0.3,
-    }))
-    setTimeseriesData(generated)
-  }, [showDataLayer, timeseriesData.length])
+    const fetchFrames = async () => {
+      try {
+        // Fetch the frames.ndjson artifact
+        const framesPath = result.artifacts.frames.replace('/app/data/', '')
+        const response = await fetch(`http://localhost:8000/data/${framesPath}`)
+        const text = await response.text()
+        
+        // Parse NDJSON (newline-delimited JSON)
+        const frames = text
+          .trim()
+          .split('\n')
+          .map(line => JSON.parse(line))
+        
+        // Transform to chart format
+        const chartData = frames.map(frame => ({
+          time: frame.t,
+          wait_time: frame.wait_time,
+          utilization: frame.utilization || 0
+        }))
+        
+        setTimeseriesData(chartData)
+      } catch (err) {
+        console.error('Failed to fetch frames:', err)
+        // Fallback to empty array on error
+        setTimeseriesData([])
+      }
+    }
+
+    fetchFrames()
+  }, [showDataLayer, timeseriesData.length, result])
 
   const fetchResults = useCallback(async () => {
     if (!runIdFromParams) return
@@ -133,6 +163,7 @@ function ResultsDashboard() {
     if (runIdFromParams) fetchResults()
   }, [runIdFromParams, fetchResults])
 
+  // NOW we can have conditional returns AFTER all hooks
   if (!runIdFromParams) {
     return (
       <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -172,10 +203,6 @@ function ResultsDashboard() {
   // Defensive: some runs may return partial/older result objects
   const summary = result?.summary || {}
   const artifacts = result?.artifacts || {}
-  const runIdShort = useMemo(() => {
-    const s = String(runIdFromParams || '')
-    return s.length > 10 ? `${s.substring(0, 8)}…` : s
-  }, [runIdFromParams])
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
@@ -252,7 +279,8 @@ function ResultsDashboard() {
       }}>
         {[
           { 
-            label: 'Avg Wait Time', 
+            label: 'Avg Wait Time',
+            tooltip: 'Average time riders wait in queue before getting a battery swap. Lower is better. Target: <5 min',
             value: formatFixed(summary.avg_wait_time, 2), 
             suffix: 'min',
             icon: <ClockCircleOutlined />,
@@ -260,85 +288,129 @@ function ResultsDashboard() {
             status: (asNumber(summary.avg_wait_time) ?? 0) > 10 ? 'warning' : 'good'
           },
           { 
-            label: 'Lost Swaps', 
+            label: 'Lost Swaps',
+            tooltip: 'Riders who left because queues were full. Indicates insufficient capacity. Target: 0',
             value: asNumber(summary.lost_swaps) ?? 0,
             icon: <CloseCircleOutlined />,
             color: '#ef4444',
             status: 'critical'
           },
           { 
-            label: 'Charger Utilization', 
-            value: ((asNumber(summary.charger_utilization) ?? 0) * 100).toFixed(1), 
+            label: 'Charger Utilization',
+            tooltip: 'Percentage of time swap bays were actively in use. Higher means better asset efficiency. Target: 60-80%',
+            value: ((asNumber(summary.utilization || summary.charger_utilization) ?? 0) * 100).toFixed(1), 
             suffix: '%',
             icon: <ThunderboltOutlined />,
             color: '#3b82f6',
             status: 'info'
           },
           { 
-            label: 'City Throughput', 
-            value: asNumber(summary.city_throughput) ?? 0, 
+            label: 'City Throughput',
+            tooltip: 'Total successful battery swaps completed. Measures service volume and revenue potential.',
+            value: asNumber(summary.throughput || summary.city_throughput) ?? 0, 
             suffix: 'swaps',
             icon: <RiseOutlined />,
             color: '#10b981',
             status: 'good'
           },
           { 
-            label: 'Idle Inventory', 
+            label: 'Idle Inventory',
+            tooltip: 'Average % of batteries sitting unused at stations. Too high = wasted capital, too low = risk of stockouts.',
             value: formatFixed(summary.idle_inventory, 1), 
             suffix: '%',
             color: '#71717a',
             status: 'neutral'
           },
           { 
-            label: 'Cost Impact', 
-            value: formatFixed(summary.total_cost_impact, 2),
+            label: 'Cost Impact',
+            tooltip: 'Total operational costs: energy, staff, battery depreciation, and maintenance. Impacts profitability.',
+            value: formatFixed(summary.operational_cost || summary.total_cost_impact, 2),
             icon: <DollarOutlined />,
             color: '#f59e0b',
             status: 'neutral'
           },
           { 
-            label: 'ROI', 
+            label: 'ROI',
+            tooltip: 'Return on Investment: (Net Profit / Capital Investment) × 100. Measures financial viability of the network.',
             value: ((asNumber(summary.roi) ?? 0) * 100).toFixed(1), 
             suffix: '%',
             color: (asNumber(summary.roi) ?? 0) > 0.2 ? '#10b981' : '#f59e0b',
             status: (asNumber(summary.roi) ?? 0) > 0.2 ? 'good' : 'warning'
           },
           { 
-            label: 'Events Logged', 
+            label: 'Events Logged',
+            tooltip: 'Total simulation events recorded (arrivals, queue joins, swaps, etc). For debugging and analysis.',
             value: asNumber(result.events_count) ?? 0,
             color: '#71717a',
             status: 'neutral'
           }
         ].map((kpi, i) => (
-          <div
+          <Tooltip 
             key={i}
-            style={{
-              padding: 20,
-              background: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-border-light)',
-              borderRadius: 'var(--radius-lg)',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all 180ms cubic-bezier(0.2, 0.8, 0.2, 1)'
+            title={
+              <div style={{ padding: '4px 0' }}>
+                <div style={{ 
+                  fontWeight: 600, 
+                  fontSize: 13,
+                  marginBottom: 6,
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  {kpi.icon && <span style={{ fontSize: 14 }}>{kpi.icon}</span>}
+                  {kpi.label}
+                </div>
+                <div style={{ 
+                  fontSize: 12, 
+                  lineHeight: 1.5,
+                  color: 'rgba(255, 255, 255, 0.85)'
+                }}>
+                  {kpi.tooltip}
+                </div>
+              </div>
+            }
+            placement="top"
+            overlayStyle={{ maxWidth: 320 }}
+            overlayInnerStyle={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)'
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = 'var(--shadow-md)'
-              e.currentTarget.style.borderColor = 'var(--color-border-medium)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
-              e.currentTarget.style.borderColor = 'var(--color-border-light)'
+            arrow={{ 
+              pointAtCenter: true,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
-              <span style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--color-text-tertiary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}>
-                {kpi.label}
-              </span>
+            <div
+              style={{
+                padding: 20,
+                background: 'var(--color-bg-elevated)',
+                border: '1px solid var(--color-border-light)',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'all 180ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+                cursor: 'help'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+                e.currentTarget.style.borderColor = 'var(--color-border-medium)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                e.currentTarget.style.borderColor = 'var(--color-border-light)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--color-text-tertiary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}>
+                  {kpi.label}
+                </span>
               {kpi.icon && (
                 <div style={{
                   width: 32,
@@ -374,7 +446,8 @@ function ResultsDashboard() {
                 </span>
               )}
             </div>
-          </div>
+            </div>
+          </Tooltip>
         ))}
       </div>
 
@@ -431,7 +504,7 @@ function ResultsDashboard() {
                       label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft' }}
                       tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
                     />
-                    <Tooltip 
+                    <ChartTooltip 
                       contentStyle={{
                         background: 'var(--color-bg-elevated)',
                         border: '1px solid var(--color-border-light)',
@@ -481,7 +554,7 @@ function ResultsDashboard() {
                       label={{ value: 'Utilization', angle: -90, position: 'insideLeft' }}
                       tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
                     />
-                    <Tooltip 
+                    <ChartTooltip 
                       contentStyle={{
                         background: 'var(--color-bg-elevated)',
                         border: '1px solid var(--color-border-light)',

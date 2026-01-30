@@ -365,9 +365,14 @@ def _run_fake_simulation(config: dict, seed: int, city: str) -> dict:
     frames_path = os.path.join(data_dir, "frames.ndjson")
     with open(frames_path, 'w', encoding='utf-8') as f:
         for index, wait_time_value in enumerate(wait_times):
+            # Derive utilization from wait_time pattern (higher wait = higher utilization)
+            # Simple heuristic: utilization correlates with wait time
+            derived_utilization = min(0.95, 0.3 + (wait_time_value / 20.0) * 0.5)
+            
             frame = {
                 "t": index,
-                "wait_time": wait_time_value
+                "wait_time": wait_time_value,
+                "utilization": round(derived_utilization, 3)
             }
             f.write(json.dumps(frame, ensure_ascii=False) + '\n')
 
@@ -511,13 +516,15 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
     kpis = kpi_engine.compute()
 
     # Compute ROI from KPIs (simplified for Level 1)
+    # Extract financial config from scenario, with realistic defaults
     roi_config = {
-        "revenue_per_swap": 500.0,  # Default value
-        "charger_energy_cost": 100.0,
-        "station_staff_cost": 200.0,
-        "battery_depreciation_cost": 50.0,
-        "infra_maintenance_cost": 50.0,
-        "capital_cost": 10000.0
+        "revenue_per_swap": config.get("revenue_per_swap", 50.0),  # $50 per swap
+        "charger_energy_cost": config.get("charger_energy_cost", 500.0),  # Energy costs
+        "station_staff_cost": config.get("station_staff_cost", 2000.0),  # Staff salaries
+        "battery_depreciation_cost": config.get("battery_depreciation_cost", 1000.0),  # Battery wear
+        "infra_maintenance_cost": config.get("infra_maintenance_cost", 500.0),  # Maintenance
+        "capital_cost": config.get("capital_cost", 100000.0),  # Initial investment
+        "duration_minutes": config.get("duration_minutes", 1440)  # For annualization
     }
     roi_engine = ROIEngine(kpis, roi_config)
     roi_metrics = roi_engine.compute()
@@ -559,8 +566,26 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
     # Write frames.ndjson
     frames_path = os.path.join(data_dir, "frames.ndjson")
     with open(frames_path, 'w', encoding='utf-8') as f:
-        for idx, wt in enumerate(timeseries.get("wait_time", [])):
-            frame = {"t": idx, "wait_time": wt}
+        wait_times_list = timeseries.get("wait_time", [])
+        
+        # If wait_times is empty, generate from events
+        if not wait_times_list:
+            # Extract wait times from events (fallback)
+            wait_times_list = [
+                e.get("metadata", {}).get("wait_time", 5.0) 
+                for e in events 
+                if e.get("event_type") == "swap_complete" and "wait_time" in e.get("metadata", {})
+            ][:60]  # Limit to 60 frames
+        
+        for idx, wt in enumerate(wait_times_list):
+            # Derive utilization from wait_time (higher wait = higher utilization)
+            derived_utilization = min(0.95, 0.3 + (wt / 20.0) * 0.5)
+            
+            frame = {
+                "t": idx, 
+                "wait_time": wt,
+                "utilization": round(derived_utilization, 3)
+            }
             f.write(json.dumps(frame, ensure_ascii=False) + '\n')
 
     return results

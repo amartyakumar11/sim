@@ -40,7 +40,8 @@ function ScenarioSubmission() {
           stations: stations
         },
         interventions: values.interventions ? JSON.parse(values.interventions) : {},
-        simulation_duration: values.simulation_duration,
+        simulation_duration: values.duration_minutes * 60, // Convert minutes to seconds for backend
+        duration_minutes: values.duration_minutes, // Already in minutes
         mode: mode
       }
 
@@ -110,7 +111,7 @@ function ScenarioSubmission() {
           onFinish={handleSubmit}
           initialValues={{
             description: 'Test scenario',
-            simulation_duration: 3600
+            duration_minutes: 60
           }}
         >
           {/* Description */}
@@ -135,13 +136,14 @@ function ScenarioSubmission() {
           {/* Duration & Mode */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Form.Item
-              label={<span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Duration (seconds)</span>}
-              name="simulation_duration"
-              rules={[{ required: true }]}
+              label={<span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Duration (minutes)</span>}
+              name="duration_minutes"
+              rules={[{ required: true, message: 'Please enter duration' }]}
+              tooltip="Simulation time: 60 = 1 hour, 1440 = 1 day, 10080 = 1 week"
             >
               <InputNumber 
-                min={60} 
-                max={86400} 
+                min={1} 
+                max={43200} 
                 style={{ 
                   width: '100%',
                   borderRadius: 'var(--radius-md)'
