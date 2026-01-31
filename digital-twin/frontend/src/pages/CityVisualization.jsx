@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import CityCanvas from '../components/CityCanvas';
+import CityMapView from '../components/CityMapView';
 import {
     getMinuteRange,
     cumulativeZonePressure,
@@ -148,60 +148,74 @@ const CityVisualization = () => {
 
     return (
         <div style={styles.page}>
-            <header style={styles.header}>
-                <h1 style={styles.title}>Digital Twin Visualization</h1>
-                <p style={styles.subtitle}>
-                    City view with zone pressure analysis and rider journeys
-                </p>
-            </header>
-
-            {/* Playback Controls */}
-            <div style={styles.playbackControls}>
-                <div style={styles.playbackRow}>
-                    <button
-                        style={styles.playButton}
-                        onClick={handlePlayPause}
-                        aria-label={isPlaying ? 'Pause' : 'Play'}
-                    >
-                        {isPlaying ? '⏸ Pause' : '▶ Play'}
-                    </button>
-                    <button
-                        style={styles.resetButton}
-                        onClick={handleReset}
-                        aria-label="Reset"
-                    >
-                        ↺ Reset
-                    </button>
-                    <div style={styles.timeDisplay}>
-                        <span style={styles.timeLabel}>Time:</span>
-                        <span style={styles.timeValue}>{formatMinuteAsTime(currentMinute)}</span>
-                        <span style={styles.minuteLabel}>(minute {currentMinute})</span>
+            {/* Modern Playback Controls - Floating Panel Style */}
+            <div style={styles.controlsContainer}>
+                <div style={styles.playbackPanel}>
+                    {/* Left: Transport Controls */}
+                    <div style={styles.transportControls}>
+                        <button
+                            style={{
+                                ...styles.controlButton,
+                                ...(isPlaying ? styles.pauseButton : styles.playButtonStyle)
+                            }}
+                            onClick={handlePlayPause}
+                            aria-label={isPlaying ? 'Pause' : 'Play'}
+                        >
+                            <span style={styles.buttonIcon}>{isPlaying ? '⏸' : '▶'}</span>
+                        </button>
+                        <button
+                            style={styles.controlButton}
+                            onClick={handleReset}
+                            aria-label="Reset"
+                        >
+                            <span style={styles.buttonIcon}>↺</span>
+                        </button>
                     </div>
-                </div>
-                <div style={styles.sliderRow}>
-                    <span style={styles.sliderLabel}>{formatMinuteAsTime(minMinute)}</span>
-                    <input
-                        type="range"
-                        min={minMinute}
-                        max={maxMinute}
-                        value={currentMinute ?? minMinute}
-                        onChange={handleSliderChange}
-                        style={styles.slider}
-                        aria-label="Time slider"
-                    />
-                    <span style={styles.sliderLabel}>{formatMinuteAsTime(maxMinute)}</span>
-                </div>
-                <div style={styles.playbackStatus}>
-                    {isPlaying ? (
-                        <span style={styles.statusPlaying}>● Playing</span>
-                    ) : (
-                        <span style={styles.statusPaused}>○ Paused</span>
-                    )}
+
+                    {/* Center: Timeline Slider */}
+                    <div style={styles.timelineSection}>
+                        <span style={styles.timeLabel}>{formatMinuteAsTime(minMinute)}</span>
+                        <div style={styles.sliderContainer}>
+                            <div
+                                style={{
+                                    ...styles.sliderTrack,
+                                    background: `linear-gradient(to right, #3b82f6 ${((currentMinute - minMinute) / (maxMinute - minMinute)) * 100}%, #e5e7eb ${((currentMinute - minMinute) / (maxMinute - minMinute)) * 100}%)`
+                                }}
+                            />
+                            <input
+                                type="range"
+                                min={minMinute}
+                                max={maxMinute}
+                                value={currentMinute ?? minMinute}
+                                onChange={handleSliderChange}
+                                style={styles.sliderInput}
+                                aria-label="Time slider"
+                            />
+                        </div>
+                        <span style={styles.timeLabel}>{formatMinuteAsTime(maxMinute)}</span>
+                    </div>
+
+                    {/* Right: Time Display */}
+                    <div style={styles.timeDisplaySection}>
+                        <div style={styles.currentTime}>
+                            {formatMinuteAsTime(currentMinute)}
+                        </div>
+                        <div style={styles.statusBadge}>
+                            <span style={{
+                                ...styles.statusDot,
+                                backgroundColor: isPlaying ? '#22c55e' : '#f59e0b'
+                            }} />
+                            <span style={styles.statusText}>
+                                {isPlaying ? 'Playing' : 'Paused'}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            {/* Map Container */}
             <main style={styles.main}>
-                <CityCanvas
+                <CityMapView
                     cityGraph={cityGraph}
                     zonePressure={filteredZonePressure}
                     stationTimelines={filteredStationTimelines}
@@ -209,12 +223,6 @@ const CityVisualization = () => {
                     currentMinute={currentMinute}
                 />
             </main>
-
-            <footer style={styles.footer}>
-                <p style={styles.footerText}>
-                    Read-only visualization • Data from simulation observability artifacts
-                </p>
-            </footer>
         </div>
     );
 };
@@ -222,138 +230,153 @@ const CityVisualization = () => {
 const styles = {
     page: {
         minHeight: '100vh',
-        backgroundColor: '#f5f5f5',
-        display: 'flex',
-        flexDirection: 'column'
-    },
-    header: {
-        backgroundColor: 'white',
-        borderBottom: '1px solid #e0e0e0',
-        padding: '20px',
-        textAlign: 'center'
-    },
-    title: {
-        margin: '0 0 10px 0',
-        color: '#1976D2',
-        fontSize: '32px'
-    },
-    subtitle: {
-        margin: 0,
-        color: '#666',
-        fontSize: '16px'
-    },
-    playbackControls: {
-        backgroundColor: 'white',
-        borderBottom: '1px solid #e0e0e0',
-        padding: '15px 20px',
+        backgroundColor: '#0f172a',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px'
+        position: 'relative'
     },
-    playbackRow: {
+    controlsContainer: {
+        position: 'absolute',
+        top: 16,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000,
+        width: '90%',
+        maxWidth: '800px'
+    },
+    playbackPanel: {
         display: 'flex',
         alignItems: 'center',
-        gap: '15px',
-        flexWrap: 'wrap'
+        gap: 20,
+        padding: '12px 20px',
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(12px)',
+        borderRadius: 16,
+        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08)',
+        border: '1px solid rgba(255, 255, 255, 0.2)'
     },
-    playButton: {
-        padding: '10px 24px',
-        fontSize: '16px',
-        fontWeight: 'bold',
-        backgroundColor: '#1976D2',
-        color: 'white',
+    transportControls: {
+        display: 'flex',
+        gap: 8
+    },
+    controlButton: {
+        width: 44,
+        height: 44,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         border: 'none',
-        borderRadius: '6px',
+        borderRadius: 12,
         cursor: 'pointer',
-        transition: 'background-color 0.2s'
+        transition: 'all 0.2s ease',
+        backgroundColor: '#f1f5f9',
+        color: '#475569'
     },
-    resetButton: {
-        padding: '10px 18px',
-        fontSize: '14px',
-        backgroundColor: '#757575',
+    playButtonStyle: {
+        backgroundColor: '#3b82f6',
         color: 'white',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer'
+        boxShadow: '0 2px 8px rgba(59, 130, 246, 0.4)'
     },
-    timeDisplay: {
+    pauseButton: {
+        backgroundColor: '#ef4444',
+        color: 'white',
+        boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+    },
+    buttonIcon: {
+        fontSize: 18,
+        fontWeight: 'bold'
+    },
+    timelineSection: {
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-        marginLeft: 'auto'
+        gap: 12,
+        flex: 1
     },
     timeLabel: {
-        color: '#666',
-        fontSize: '14px'
+        fontSize: 12,
+        fontWeight: 600,
+        color: '#64748b',
+        fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', monospace",
+        minWidth: 45
     },
-    timeValue: {
-        fontSize: '24px',
-        fontWeight: 'bold',
-        fontFamily: 'monospace',
-        color: '#1976D2'
+    sliderContainer: {
+        flex: 1,
+        position: 'relative',
+        height: 6
     },
-    minuteLabel: {
-        color: '#999',
-        fontSize: '12px'
+    sliderTrack: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 6,
+        borderRadius: 3,
+        pointerEvents: 'none'
     },
-    sliderRow: {
+    sliderInput: {
+        width: '100%',
+        height: 6,
+        appearance: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        position: 'relative',
+        zIndex: 1,
+        margin: 0
+    },
+    timeDisplaySection: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: 2
+    },
+    currentTime: {
+        fontSize: 28,
+        fontWeight: 700,
+        color: '#1e293b',
+        fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', monospace",
+        letterSpacing: '-0.02em',
+        lineHeight: 1
+    },
+    statusBadge: {
         display: 'flex',
         alignItems: 'center',
-        gap: '10px'
+        gap: 6,
+        padding: '2px 8px',
+        backgroundColor: '#f8fafc',
+        borderRadius: 12
     },
-    slider: {
-        flex: 1,
-        height: '6px',
-        cursor: 'pointer'
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        animation: 'pulse 2s infinite'
     },
-    sliderLabel: {
-        fontSize: '12px',
-        color: '#666',
-        fontFamily: 'monospace',
-        minWidth: '50px'
-    },
-    playbackStatus: {
-        textAlign: 'center'
-    },
-    statusPlaying: {
-        color: '#4CAF50',
-        fontWeight: 'bold',
-        fontSize: '14px'
-    },
-    statusPaused: {
-        color: '#FF9800',
-        fontWeight: 'bold',
-        fontSize: '14px'
+    statusText: {
+        fontSize: 11,
+        fontWeight: 600,
+        color: '#64748b',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em'
     },
     main: {
         flex: 1,
-        padding: '20px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-start'
-    },
-    footer: {
-        backgroundColor: 'white',
-        borderTop: '1px solid #e0e0e0',
-        padding: '15px',
-        textAlign: 'center'
-    },
-    footerText: {
-        margin: 0,
-        color: '#999',
-        fontSize: '13px'
+        position: 'relative'
     },
     loading: {
-        textAlign: 'center',
-        padding: '50px',
-        fontSize: '18px',
-        color: '#666'
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        fontSize: 18,
+        color: '#94a3b8'
     },
     error: {
-        textAlign: 'center',
-        padding: '50px',
-        fontSize: '16px',
-        color: '#f44336'
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        fontSize: 16,
+        color: '#ef4444'
     }
 };
 
