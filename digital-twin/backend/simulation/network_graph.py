@@ -185,44 +185,208 @@ class NetworkGraph:
         Load station topology from configuration dictionary.
 
         Args:
-            topology_config: Dictionary containing stations and edges
+            topology_config: Dictionary containing zones, stations, and edges
 
         Expected format:
         {
-            "stations": [{"station_id": "...", ...}, ...],
-            "edges": [{"from": "...", "to": "...", "distance_km": ..., ...}, ...]
+            "zones": [{"zone_id": "Z_...", "zone_name": "...", ...}, ...],
+            "stations": [{"station_id": "...", "zone_id": "...", ...}, ...],
+            "edges": [{"from_station_id": "...", "to_station_id": "...", ...}, ...]
         }
 
-        TODO: Validate topology_config structure
-        TODO: Add all stations first
-        TODO: Add all edges after stations
-        TODO: Validate graph connectivity
+        Raises:
+            ValueError: If topology_config is invalid or connectivity validation fails
         """
-        # TODO: Validate topology_config has "stations" and "edges" keys
-        # TODO: Iterate through stations and call add_station for each
-        # TODO: Iterate through edges and call add_edge for each
-        # TODO: Validate graph is connected (or handle disconnected components)
-        # TODO: Check for cycles and validate graph structure
-        pass
+        # Validate topology_config structure
+        if not isinstance(topology_config, dict):
+            raise ValueError("topology_config must be a dictionary")
+        
+        if "zones" not in topology_config:
+            raise ValueError("topology_config must contain 'zones' key")
+        
+        if "stations" not in topology_config:
+            raise ValueError("topology_config must contain 'stations' key")
+        
+        if "edges" not in topology_config:
+            raise ValueError("topology_config must contain 'edges' key")
+        
+        # Parse zones and build zone metadata structure
+        zones_metadata = {}
+        for zone in topology_config["zones"]:
+            zone_id = zone.get("zone_id")
+            if not zone_id:
+                raise ValueError("Each zone must have a 'zone_id'")
+            
+            zones_metadata[zone_id] = {
+                "station_ids": [],  # Will be populated when adding stations
+                "zone_name": zone.get("zone_name", zone_id),
+                "type": zone.get("description", "").split()[0].lower() if zone.get("description") else "unknown"
+            }
+        
+        # Store zone metadata in graph attributes (GUARDRAIL #1)
+        self.graph.graph["zones"] = zones_metadata
+        
+        # Add all stations as nodes (without Station objects - will be added later by simulation)
+        for station_config in topology_config["stations"]:
+            station_id = station_config.get("station_id")
+            if not station_id:
+                raise ValueError("Each station must have a 'station_id'")
+            
+            zone_id = station_config.get("zone_id")
+            if zone_id not in zones_metadata:
+                raise ValueError(f"Station {station_id} references unknown zone {zone_id}")
+            
+            # Add station node with attributes (no Station object yet)
+            self.graph.add_node(
+                station_id,
+                zone_id=zone_id,
+                swap_bays=station_config.get("swap_bays", 4),
+                inventory_capacity=station_config.get("inventory_capacity", 40),
+                status=station_config.get("status", "up"),
+                station=None  # Will be set when Station object is created
+            )
+            
+            # Add station_id to zone metadata
+            zones_metadata[zone_id]["station_ids"].append(station_id)
+        
+        # Add all edges
+        for edge in topology_config["edges"]:
+            from_station_id = edge.get("from_station_id")
+            to_station_id = edge.get("to_station_id")
+            
+            if not from_station_id or not to_station_id:
+                raise ValueError("Each edge must have 'from_station_id' and 'to_station_id'")
+            
+            if from_station_id not in self.graph:
+                raise ValueError(f"Edge references unknown station: {from_station_id}")
+            
+            if to_station_id not in self.graph:
+                raise ValueError(f"Edge references unknown station: {to_station_id}")
+            
+            self.add_edge(
+                from_station_id,
+                to_station_id,
+                distance_km=edge.get("distance_km", 1.0),
+                base_travel_time_min=edge.get("base_travel_time_min", 3.0),
+                traffic_factor=edge.get("traffic_factor", 1.0)
+            )
+        
+        # Validate zone-level connectivity (GUARDRAIL #2: zone-level, not node-level)
+        self._validate_zone_connectivity()
+    
+    def _validate_zone_connectivity(self):
+        """
+        Validate that every zone connects to at least one other zone.
+        
+        This is ZONE-LEVEL validation, not node-level (GUARDRAIL #2).
+        We don't require all stations to reach all other stations.
+        
+        Raises:
+            ValueError: If any zone is isolated (no inter-zone edges)
+        """
+        zones = self.graph.graph.get("zones", {})
+        
+        if not zones:
+            # No zones defined, skip validation
+            return
+        
+        # Build zone-to-zone connectivity map
+        zone_connections = {zone_id: set() for zone_id in zones.keys()}
+        
+        for from_station, to_station in self.graph.edges():
+            from_zone = self.graph.nodes[from_station].get("zone_id")
+            to_zone = self.graph.nodes[to_station].get("zone_id")
+            
+            if from_zone and to_zone and from_zone != to_zone:
+                zone_connections[from_zone].add(to_zone)
+        
+        # Check that every zone connects to at least one other zone
+        isolated_zones = [
+            zone_id for zone_id, connections in zone_connections.items()
+            if len(connections) == 0
+        ]
+        
+        if isolated_zones:
+            raise ValueError(
+                f"Zone-level connectivity validation failed: "
+                f"Zones {isolated_zones} have no inter-zone connections"
+            )
+    
+    def clone(self):
+        """
+        Clone the network graph for intervention scenarios.
+        
+        GUARDRAIL #3: Deep copy graph structure and node attributes,
+        but do NOT copy Station objects. Station objects will be
+        re-instantiated during simulation initialization.
+        
+        Returns:
+            New NetworkGraph instance with copied graph structure
+        """
+        cloned_graph = NetworkGraph()
+        
+        # Deep copy the networkx graph structure
+        cloned_graph.graph = self.graph.copy(as_view=False)
+        
+        # Ensure zone metadata is also deep copied
+        if "zones" in self.graph.graph:
+            import copy
+            cloned_graph.graph.graph["zones"] = copy.deepcopy(self.graph.graph["zones"])
+        
+        # Clear Station object references (will be rehydrated later)
+        for node_id in cloned_graph.graph.nodes():
+            cloned_graph.graph.nodes[node_id]["station"] = None
+        
+        return cloned_graph
 
     def snapshot(self) -> dict:
         """
         Create a snapshot of the current graph state.
 
         Returns:
-            Dictionary containing graph topology and attributes
-
-        TODO: Serialize all nodes and edges
-        TODO: Include station metadata
-        TODO: Include edge weights and attributes
+            Dictionary containing graph topology, zone information, and attributes
         """
-        # TODO: Build dictionary with nodes and edges
-        # TODO: Include all node attributes (station metadata)
-        # TODO: Include all edge attributes (distance, time, traffic)
-        # TODO: Return serializable structure
+        # Count intra-zone vs inter-zone edges
+        intra_zone_edges = 0
+        inter_zone_edges = 0
+        
+        for from_station, to_station in self.graph.edges():
+            from_zone = self.graph.nodes[from_station].get("zone_id")
+            to_zone = self.graph.nodes[to_station].get("zone_id")
+            
+            if from_zone == to_zone:
+                intra_zone_edges += 1
+            else:
+                inter_zone_edges += 1
+        
+        # Build zone connectivity matrix
+        zones = self.graph.graph.get("zones", {})
+        zone_connectivity = {}
+        
+        for zone_id in zones.keys():
+            zone_connectivity[zone_id] = set()
+        
+        for from_station, to_station in self.graph.edges():
+            from_zone = self.graph.nodes[from_station].get("zone_id")
+            to_zone = self.graph.nodes[to_station].get("zone_id")
+            
+            if from_zone and to_zone and from_zone != to_zone:
+                zone_connectivity[from_zone].add(to_zone)
+        
+        # Convert sets to lists for JSON serialization
+        zone_connectivity_serializable = {
+            zone_id: list(connections) 
+            for zone_id, connections in zone_connectivity.items()
+        }
+        
         return {
             "nodes": list(self.graph.nodes(data=True)),
             "edges": list(self.graph.edges(data=True)),
             "num_nodes": self.graph.number_of_nodes(),
-            "num_edges": self.graph.number_of_edges()
+            "num_edges": self.graph.number_of_edges(),
+            "zones": self.graph.graph.get("zones", {}),
+            "intra_zone_edges": intra_zone_edges,
+            "inter_zone_edges": inter_zone_edges,
+            "zone_connectivity": zone_connectivity_serializable
         }
+

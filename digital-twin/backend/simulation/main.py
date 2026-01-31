@@ -438,6 +438,22 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
 
         # Initialize network graph and routing
         network_graph = NetworkGraph()
+        
+        # Load baseline city graph topology if available
+        import os
+        graph_config_path = os.path.join(
+            os.path.dirname(__file__), 
+            'city_graph_baseline.json'
+        )
+        if os.path.exists(graph_config_path):
+            try:
+                with open(graph_config_path, 'r', encoding='utf-8') as f:
+                    graph_config = json.load(f)
+                network_graph.load_topology(graph_config)
+                print(f"[INFO] Loaded baseline city graph: {graph_config['metadata']['total_stations']} stations, {graph_config['metadata']['total_zones']} zones")
+            except Exception as e:
+                print(f"[WARN] Failed to load baseline graph: {e}. Continuing with empty graph.")
+        
         routing_engine = RoutingEngine(network_graph)
 
         # Initialize stations

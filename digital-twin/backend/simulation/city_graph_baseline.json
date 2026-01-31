@@ -1,0 +1,483 @@
+{
+    "metadata": {
+        "graph_version": "1.0.0",
+        "city_name": "abstract_metro",
+        "description": "Canonical Level-2 EV battery swap network with 25 stations across 5 zones (abstract topology, no GPS coordinates)",
+        "total_stations": 25,
+        "total_zones": 5,
+        "creation_date": "2026-01-31"
+    },
+    "zones": [
+        {
+            "zone_id": "Z_DOWNTOWN",
+            "zone_name": "Downtown Core",
+            "description": "High-density commercial district with frequent swaps",
+            "station_count": 6
+        },
+        {
+            "zone_id": "Z_INDUSTRIAL",
+            "zone_name": "Industrial Park",
+            "description": "Logistics and fleet operations zone",
+            "station_count": 4
+        },
+        {
+            "zone_id": "Z_RESIDENTIAL_NORTH",
+            "zone_name": "North Residential",
+            "description": "High-rise residential with morning/evening peaks",
+            "station_count": 5
+        },
+        {
+            "zone_id": "Z_RESIDENTIAL_SOUTH",
+            "zone_name": "South Residential",
+            "description": "Suburban residential with moderate demand",
+            "station_count": 5
+        },
+        {
+            "zone_id": "Z_AIRPORT",
+            "zone_name": "Airport District",
+            "description": "Airport and transportation hub",
+            "station_count": 5
+        }
+    ],
+    "stations": [
+        {
+            "station_id": "ST_DT_001",
+            "zone_id": "Z_DOWNTOWN",
+            "swap_bays": 6,
+            "inventory_capacity": 60,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_DT_002",
+            "zone_id": "Z_DOWNTOWN",
+            "swap_bays": 5,
+            "inventory_capacity": 50,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_DT_003",
+            "zone_id": "Z_DOWNTOWN",
+            "swap_bays": 6,
+            "inventory_capacity": 60,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_DT_004",
+            "zone_id": "Z_DOWNTOWN",
+            "swap_bays": 4,
+            "inventory_capacity": 40,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_DT_005",
+            "zone_id": "Z_DOWNTOWN",
+            "swap_bays": 5,
+            "inventory_capacity": 50,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_DT_006",
+            "zone_id": "Z_DOWNTOWN",
+            "swap_bays": 4,
+            "inventory_capacity": 40,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_IND_001",
+            "zone_id": "Z_INDUSTRIAL",
+            "swap_bays": 8,
+            "inventory_capacity": 80,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_IND_002",
+            "zone_id": "Z_INDUSTRIAL",
+            "swap_bays": 7,
+            "inventory_capacity": 70,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_IND_003",
+            "zone_id": "Z_INDUSTRIAL",
+            "swap_bays": 6,
+            "inventory_capacity": 60,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_IND_004",
+            "zone_id": "Z_INDUSTRIAL",
+            "swap_bays": 8,
+            "inventory_capacity": 80,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RN_001",
+            "zone_id": "Z_RESIDENTIAL_NORTH",
+            "swap_bays": 3,
+            "inventory_capacity": 30,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RN_002",
+            "zone_id": "Z_RESIDENTIAL_NORTH",
+            "swap_bays": 4,
+            "inventory_capacity": 40,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RN_003",
+            "zone_id": "Z_RESIDENTIAL_NORTH",
+            "swap_bays": 3,
+            "inventory_capacity": 30,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RN_004",
+            "zone_id": "Z_RESIDENTIAL_NORTH",
+            "swap_bays": 4,
+            "inventory_capacity": 40,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RN_005",
+            "zone_id": "Z_RESIDENTIAL_NORTH",
+            "swap_bays": 3,
+            "inventory_capacity": 30,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RS_001",
+            "zone_id": "Z_RESIDENTIAL_SOUTH",
+            "swap_bays": 3,
+            "inventory_capacity": 30,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RS_002",
+            "zone_id": "Z_RESIDENTIAL_SOUTH",
+            "swap_bays": 3,
+            "inventory_capacity": 30,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RS_003",
+            "zone_id": "Z_RESIDENTIAL_SOUTH",
+            "swap_bays": 4,
+            "inventory_capacity": 40,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RS_004",
+            "zone_id": "Z_RESIDENTIAL_SOUTH",
+            "swap_bays": 3,
+            "inventory_capacity": 30,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_RS_005",
+            "zone_id": "Z_RESIDENTIAL_SOUTH",
+            "swap_bays": 4,
+            "inventory_capacity": 40,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_AP_001",
+            "zone_id": "Z_AIRPORT",
+            "swap_bays": 7,
+            "inventory_capacity": 70,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_AP_002",
+            "zone_id": "Z_AIRPORT",
+            "swap_bays": 6,
+            "inventory_capacity": 60,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_AP_003",
+            "zone_id": "Z_AIRPORT",
+            "swap_bays": 5,
+            "inventory_capacity": 50,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_AP_004",
+            "zone_id": "Z_AIRPORT",
+            "swap_bays": 6,
+            "inventory_capacity": 60,
+            "status": "up"
+        },
+        {
+            "station_id": "ST_AP_005",
+            "zone_id": "Z_AIRPORT",
+            "swap_bays": 7,
+            "inventory_capacity": 70,
+            "status": "up"
+        }
+    ],
+    "edges": [
+        {
+            "_comment": "DOWNTOWN INTRA-ZONE (dense mesh, short travel times)",
+            "from_station_id": "ST_DT_001",
+            "to_station_id": "ST_DT_002",
+            "distance_km": 0.8,
+            "base_travel_time_min": 2.5,
+            "traffic_factor": 1.2,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_DT_001",
+            "to_station_id": "ST_DT_003",
+            "distance_km": 1.2,
+            "base_travel_time_min": 3.5,
+            "traffic_factor": 1.3,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_DT_002",
+            "to_station_id": "ST_DT_003",
+            "distance_km": 0.6,
+            "base_travel_time_min": 2.0,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_DT_002",
+            "to_station_id": "ST_DT_004",
+            "distance_km": 0.9,
+            "base_travel_time_min": 2.8,
+            "traffic_factor": 1.2,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_DT_003",
+            "to_station_id": "ST_DT_005",
+            "distance_km": 1.0,
+            "base_travel_time_min": 3.0,
+            "traffic_factor": 1.2,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_DT_004",
+            "to_station_id": "ST_DT_005",
+            "distance_km": 0.7,
+            "base_travel_time_min": 2.3,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_DT_005",
+            "to_station_id": "ST_DT_006",
+            "distance_km": 1.1,
+            "base_travel_time_min": 3.3,
+            "traffic_factor": 1.3,
+            "edge_type": "intra_zone"
+        },
+        {
+            "_comment": "INDUSTRIAL INTRA-ZONE (moderate density)",
+            "from_station_id": "ST_IND_001",
+            "to_station_id": "ST_IND_002",
+            "distance_km": 1.5,
+            "base_travel_time_min": 4.0,
+            "traffic_factor": 1.0,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_IND_002",
+            "to_station_id": "ST_IND_003",
+            "distance_km": 1.8,
+            "base_travel_time_min": 4.5,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_IND_003",
+            "to_station_id": "ST_IND_004",
+            "distance_km": 2.0,
+            "base_travel_time_min": 5.0,
+            "traffic_factor": 1.0,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_IND_001",
+            "to_station_id": "ST_IND_004",
+            "distance_km": 2.5,
+            "base_travel_time_min": 6.0,
+            "traffic_factor": 1.0,
+            "edge_type": "intra_zone"
+        },
+        {
+            "_comment": "RESIDENTIAL_NORTH INTRA-ZONE (moderate density)",
+            "from_station_id": "ST_RN_001",
+            "to_station_id": "ST_RN_002",
+            "distance_km": 1.2,
+            "base_travel_time_min": 3.5,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_RN_002",
+            "to_station_id": "ST_RN_003",
+            "distance_km": 1.4,
+            "base_travel_time_min": 4.0,
+            "traffic_factor": 1.2,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_RN_003",
+            "to_station_id": "ST_RN_004",
+            "distance_km": 1.3,
+            "base_travel_time_min": 3.8,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_RN_004",
+            "to_station_id": "ST_RN_005",
+            "distance_km": 1.5,
+            "base_travel_time_min": 4.2,
+            "traffic_factor": 1.2,
+            "edge_type": "intra_zone"
+        },
+        {
+            "_comment": "RESIDENTIAL_SOUTH INTRA-ZONE (moderate density)",
+            "from_station_id": "ST_RS_001",
+            "to_station_id": "ST_RS_002",
+            "distance_km": 1.6,
+            "base_travel_time_min": 4.5,
+            "traffic_factor": 1.0,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_RS_002",
+            "to_station_id": "ST_RS_003",
+            "distance_km": 1.4,
+            "base_travel_time_min": 4.0,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_RS_003",
+            "to_station_id": "ST_RS_004",
+            "distance_km": 1.7,
+            "base_travel_time_min": 4.8,
+            "traffic_factor": 1.0,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_RS_004",
+            "to_station_id": "ST_RS_005",
+            "distance_km": 1.5,
+            "base_travel_time_min": 4.2,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "_comment": "AIRPORT INTRA-ZONE (high capacity, moderate connectivity)",
+            "from_station_id": "ST_AP_001",
+            "to_station_id": "ST_AP_002",
+            "distance_km": 2.0,
+            "base_travel_time_min": 5.0,
+            "traffic_factor": 1.2,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_AP_002",
+            "to_station_id": "ST_AP_003",
+            "distance_km": 1.8,
+            "base_travel_time_min": 4.5,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_AP_003",
+            "to_station_id": "ST_AP_004",
+            "distance_km": 1.9,
+            "base_travel_time_min": 4.8,
+            "traffic_factor": 1.2,
+            "edge_type": "intra_zone"
+        },
+        {
+            "from_station_id": "ST_AP_004",
+            "to_station_id": "ST_AP_005",
+            "distance_km": 2.1,
+            "base_travel_time_min": 5.2,
+            "traffic_factor": 1.1,
+            "edge_type": "intra_zone"
+        },
+        {
+            "_comment": "INTER-ZONE EDGES (sparse, higher travel times)",
+            "from_station_id": "ST_DT_001",
+            "to_station_id": "ST_IND_001",
+            "distance_km": 5.5,
+            "base_travel_time_min": 12.0,
+            "traffic_factor": 1.4,
+            "edge_type": "inter_zone"
+        },
+        {
+            "from_station_id": "ST_DT_003",
+            "to_station_id": "ST_RN_001",
+            "distance_km": 4.2,
+            "base_travel_time_min": 9.5,
+            "traffic_factor": 1.3,
+            "edge_type": "inter_zone"
+        },
+        {
+            "from_station_id": "ST_DT_005",
+            "to_station_id": "ST_AP_001",
+            "distance_km": 8.0,
+            "base_travel_time_min": 18.0,
+            "traffic_factor": 1.5,
+            "edge_type": "inter_zone"
+        },
+        {
+            "from_station_id": "ST_IND_002",
+            "to_station_id": "ST_AP_002",
+            "distance_km": 6.5,
+            "base_travel_time_min": 14.5,
+            "traffic_factor": 1.3,
+            "edge_type": "inter_zone"
+        },
+        {
+            "from_station_id": "ST_RN_003",
+            "to_station_id": "ST_DT_002",
+            "distance_km": 4.8,
+            "base_travel_time_min": 10.5,
+            "traffic_factor": 1.4,
+            "edge_type": "inter_zone"
+        },
+        {
+            "from_station_id": "ST_RS_001",
+            "to_station_id": "ST_DT_004",
+            "distance_km": 5.2,
+            "base_travel_time_min": 11.5,
+            "traffic_factor": 1.3,
+            "edge_type": "inter_zone"
+        },
+        {
+            "from_station_id": "ST_AP_003",
+            "to_station_id": "ST_IND_003",
+            "distance_km": 7.0,
+            "base_travel_time_min": 15.5,
+            "traffic_factor": 1.2,
+            "edge_type": "inter_zone"
+        },
+        {
+            "from_station_id": "ST_RN_005",
+            "to_station_id": "ST_RS_002",
+            "distance_km": 6.0,
+            "base_travel_time_min": 13.0,
+            "traffic_factor": 1.2,
+            "edge_type": "inter_zone"
+        }
+    ],
+    "graph_properties": {
+        "is_directed": true,
+        "intra_zone_edge_count": 23,
+        "inter_zone_edge_count": 8,
+        "total_edge_count": 31,
+        "avg_intra_zone_travel_time_min": 3.8,
+        "avg_inter_zone_travel_time_min": 12.9
+    }
+}
