@@ -2,7 +2,7 @@
  * CityMapView: Map-based visualization for the Digital Twin
  * 
  * Uses MapLibre with OpenStreetMap for a real map background.
- * Renders battery swap stations and rider journeys on the map.
+ * Renders battery swap stations from city_graph_lucknow.json.
  * Integrates with the playback system for time-based visualization.
  * 
  * This is a READ-ONLY visualization - NO simulation logic.
@@ -10,50 +10,14 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
-import * as turf from '@turf/turf';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { BatteryCharging, Zap, MapPin, User } from 'lucide-react';
+import { BatteryCharging, User } from 'lucide-react';
 
 // --------------------------------------------------------
-// CONFIGURATION
+// CONFIGURATION - LUCKNOW
 // --------------------------------------------------------
-// Using Delhi coordinates (like your friend's example)
-const CITY_CENTER = { lat: 28.6276, lon: 77.2156 };
-
-// Zone configuration with approximate center coordinates
-const ZONE_CONFIG = {
-    'zone_01': {
-        name: 'Downtown Core',
-        center: { lat: 28.6320, lon: 77.2200 },
-        color: '#3b82f6'
-    },
-    'zone_02': {
-        name: 'North Residential',
-        center: { lat: 28.6400, lon: 77.2100 },
-        color: '#10b981'
-    },
-    'zone_03': {
-        name: 'Business District',
-        center: { lat: 28.6250, lon: 77.2300 },
-        color: '#f59e0b'
-    },
-    'zone_04': {
-        name: 'Industrial Park',
-        center: { lat: 28.6180, lon: 77.2050 },
-        color: '#8b5cf6'
-    }
-};
-
-// Station coordinates - spread around zones
-const STATION_COORDS = {
-    'ST_01_01': { lat: 28.6320, lon: 77.2180, zone: 'zone_01' },
-    'ST_01_02': { lat: 28.6340, lon: 77.2220, zone: 'zone_01' },
-    'ST_02_01': { lat: 28.6400, lon: 77.2080, zone: 'zone_02' },
-    'ST_02_02': { lat: 28.6420, lon: 77.2120, zone: 'zone_02' },
-    'ST_03_01': { lat: 28.6250, lon: 77.2280, zone: 'zone_03' },
-    'ST_04_01': { lat: 28.6180, lon: 77.2030, zone: 'zone_04' },
-    'ST_04_02': { lat: 28.6200, lon: 77.2070, zone: 'zone_04' }
-};
+const LUCKNOW_CENTER = { lat: 26.85, lon: 80.95 };
+const INITIAL_ZOOM = 11.5;
 
 // --------------------------------------------------------
 // COMPONENT
@@ -66,22 +30,57 @@ const CityMapView = ({
     currentMinute = null
 }) => {
     const [viewState, setViewState] = useState({
-        longitude: CITY_CENTER.lon,
-        latitude: CITY_CENTER.lat,
-        zoom: 14,
+        longitude: LUCKNOW_CENTER.lon,
+        latitude: LUCKNOW_CENTER.lat,
+        zoom: INITIAL_ZOOM,
         pitch: 45
     });
 
     const [hoveredStation, setHoveredStation] = useState(null);
+    const [lucknowData, setLucknowData] = useState(null);
+    const [loadError, setLoadError] = useState(null);
 
-    // Get pressure level for zone
-    const getZonePressure = (zoneId) => {
-        const entry = zonePressure[zoneId];
-        if (!entry) return 0;
-        return entry.pressure_score || 0;
-    };
+    // STEP 1: Load Lucknow City Graph
+    useEffect(() => {
+        fetch('/city_graph_lucknow.json')
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: Failed to load city graph`);
+                }
+                return res.json();
+            })
+            .then(data => {
+                setLucknowData(data);
+                setLoadError(null);
+            })
+            .catch(err => {
+                console.error('Failed to load city_graph_lucknow.json:', err);
+                setLoadError(err.message);
+            });
+    }, []);
 
-    // Get station state
+    // Get stations from loaded data
+    const stations = useMemo(() => {
+        if (!lucknowData || !lucknowData.stations) return [];
+        return lucknowData.stations;
+    }, [lucknowData]);
+
+    // Build a lookup map for station coordinates
+    const stationCoordsMap = useMemo(() => {
+        const map = {};
+        stations.forEach(station => {
+            map[station.station_id] = {
+                lat: station.latitude,
+                lon: station.longitude,
+                zone: station.zone_id,
+                swap_bays: station.swap_bays,
+                chargers_total: station.chargers_total
+            };
+        });
+        return map;
+    }, [stations]);
+
+    // Get station state from timelines
     const getStationState = (stationId) => {
         return stationTimelines[stationId] || {
             swaps_total: 0,
@@ -100,7 +99,7 @@ const CityMapView = ({
 
             const coordinates = completedStations
                 .map(stationId => {
-                    const coord = STATION_COORDS[stationId];
+                    const coord = stationCoordsMap[stationId];
                     return coord ? [coord.lon, coord.lat] : null;
                 })
                 .filter(c => c !== null);
@@ -124,7 +123,7 @@ const CityMapView = ({
             type: 'FeatureCollection',
             features
         };
-    }, [riderTraces]);
+    }, [riderTraces, stationCoordsMap]);
 
     // Get hero rider (most swaps)
     const heroRider = useMemo(() => {
@@ -143,15 +142,37 @@ const CityMapView = ({
     // Hero rider current position (last completed station)
     const heroPosition = useMemo(() => {
         if (!heroRider) return null;
-        const stations = heroRider.completedStations || heroRider.swap_stations || [];
-        if (stations.length === 0) return null;
+        const stationsList = heroRider.completedStations || heroRider.swap_stations || [];
+        if (stationsList.length === 0) return null;
 
-        const lastStation = stations[stations.length - 1];
-        return STATION_COORDS[lastStation] || null;
-    }, [heroRider]);
+        const lastStation = stationsList[stationsList.length - 1];
+        return stationCoordsMap[lastStation] || null;
+    }, [heroRider, stationCoordsMap]);
+
+    // STEP 5: Safety check - show error state if load failed
+    if (loadError) {
+        return (
+            <div style={styles.errorContainer}>
+                <div style={styles.errorBox}>
+                    <h3 style={styles.errorTitle}>⚠️ Failed to Load Lucknow Map</h3>
+                    <p style={styles.errorText}>{loadError}</p>
+                    <p style={styles.errorHint}>Make sure city_graph_lucknow.json is in the public folder.</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show loading state
+    if (!lucknowData) {
+        return (
+            <div style={styles.loadingContainer}>
+                <div style={styles.loadingSpinner}>Loading Lucknow stations...</div>
+            </div>
+        );
+    }
 
     return (
-        <div style={{ width: '100%', height: '600px', position: 'relative', borderRadius: '8px', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
             <Map
                 {...viewState}
                 onMove={evt => setViewState(evt.viewState)}
@@ -171,22 +192,28 @@ const CityMapView = ({
                     />
                 </Source>
 
-                {/* Station markers */}
-                {Object.entries(STATION_COORDS).map(([stationId, coord]) => {
-                    const state = getStationState(stationId);
+                {/* STEP 3: Station markers from Lucknow data */}
+                {stations.map((station) => {
+                    const state = getStationState(station.station_id);
                     const isUnderPressure = state.activePressure !== null;
                     const hasLostSwaps = state.lost_swaps > 0;
 
                     return (
                         <Marker
-                            key={stationId}
-                            longitude={coord.lon}
-                            latitude={coord.lat}
+                            key={station.station_id}
+                            longitude={station.longitude}
+                            latitude={station.latitude}
                             anchor="bottom"
                         >
                             <div
                                 style={styles.stationMarker}
-                                onMouseEnter={() => setHoveredStation({ id: stationId, ...state, coord })}
+                                onMouseEnter={() => setHoveredStation({
+                                    id: station.station_id,
+                                    zone_id: station.zone_id,
+                                    swap_bays: station.swap_bays,
+                                    chargers_total: station.chargers_total,
+                                    ...state
+                                })}
                                 onMouseLeave={() => setHoveredStation(null)}
                             >
                                 <div style={{
@@ -195,10 +222,7 @@ const CityMapView = ({
                                         hasLostSwaps ? '#f59e0b' : '#22c55e',
                                     transform: isUnderPressure ? 'scale(1.2)' : 'scale(1)'
                                 }}>
-                                    <BatteryCharging size={16} color="white" />
-                                </div>
-                                <div style={styles.stationLabel}>
-                                    {stationId.replace('ST_', '')}
+                                    <BatteryCharging size={12} color="white" />
                                 </div>
                             </div>
                         </Marker>
@@ -224,16 +248,22 @@ const CityMapView = ({
 
             {/* Network Status Overlay */}
             <div style={styles.statusOverlay}>
-                <h3 style={styles.statusTitle}>Network Status</h3>
+                <h3 style={styles.statusTitle}>Lucknow Network</h3>
                 <p style={styles.statusSubtitle}>
                     {currentMinute !== null ?
                         `Playback at minute ${currentMinute}` :
-                        'Simulating autonomous swapping loop'}
+                        'Battery Smart Swap Network'}
                 </p>
                 <div style={styles.statusRow}>
-                    <span>Active Stations:</span>
+                    <span>Total Stations:</span>
                     <span style={{ color: '#22c55e', fontWeight: 'bold' }}>
-                        {Object.keys(STATION_COORDS).length}
+                        {stations.length}
+                    </span>
+                </div>
+                <div style={styles.statusRow}>
+                    <span>Zones:</span>
+                    <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>
+                        {lucknowData.metadata?.total_zones || 'N/A'}
                     </span>
                 </div>
                 {heroRider && (
@@ -246,14 +276,20 @@ const CityMapView = ({
                 )}
             </div>
 
-            {/* Station Tooltip */}
+            {/* STEP 4: Station Tooltip */}
             {hoveredStation && (
                 <div style={styles.tooltip}>
                     <div style={styles.tooltipTitle}>
                         <BatteryCharging size={14} /> {hoveredStation.id}
                     </div>
                     <div style={styles.tooltipRow}>
-                        Zone: {hoveredStation.coord.zone}
+                        Zone: {hoveredStation.zone_id}
+                    </div>
+                    <div style={styles.tooltipRow}>
+                        Swap Bays: {hoveredStation.swap_bays}
+                    </div>
+                    <div style={styles.tooltipRow}>
+                        Chargers: {hoveredStation.chargers_total}
                     </div>
                     <div style={styles.tooltipRow}>
                         Total Swaps: {hoveredStation.swaps_total}
@@ -302,25 +338,15 @@ const styles = {
         cursor: 'pointer'
     },
     stationIcon: {
-        width: 32,
-        height: 32,
+        width: 24,
+        height: 24,
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
         border: '2px solid white',
         transition: 'transform 0.2s'
-    },
-    stationLabel: {
-        marginTop: 4,
-        fontSize: 10,
-        fontWeight: 'bold',
-        color: '#333',
-        backgroundColor: 'white',
-        padding: '2px 4px',
-        borderRadius: 4,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
     },
     riderMarker: {
         position: 'relative',
@@ -351,17 +377,18 @@ const styles = {
     },
     statusOverlay: {
         position: 'absolute',
-        top: 16,
+        top: 80,
         left: 16,
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255,255,255,0.95)',
         padding: 16,
-        borderRadius: 8,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-        minWidth: 200
+        borderRadius: 12,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+        minWidth: 200,
+        backdropFilter: 'blur(8px)'
     },
     statusTitle: {
         margin: 0,
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
         color: '#1f2937'
     },
@@ -378,14 +405,15 @@ const styles = {
     },
     tooltip: {
         position: 'absolute',
-        top: 16,
+        top: 80,
         right: 16,
-        backgroundColor: 'white',
-        padding: 12,
-        borderRadius: 8,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-        minWidth: 180,
-        fontSize: 13
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        padding: 14,
+        borderRadius: 12,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+        minWidth: 200,
+        fontSize: 13,
+        backdropFilter: 'blur(8px)'
     },
     tooltipTitle: {
         display: 'flex',
@@ -393,21 +421,24 @@ const styles = {
         gap: 6,
         fontWeight: 'bold',
         marginBottom: 8,
-        color: '#22c55e'
+        color: '#22c55e',
+        fontSize: 15
     },
     tooltipRow: {
-        marginTop: 4
+        marginTop: 6,
+        color: '#374151'
     },
     legend: {
         position: 'absolute',
         bottom: 16,
         left: 16,
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255,255,255,0.95)',
         padding: 12,
-        borderRadius: 8,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+        borderRadius: 12,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
         display: 'flex',
-        gap: 16
+        gap: 16,
+        backdropFilter: 'blur(8px)'
     },
     legendItem: {
         display: 'flex',
@@ -419,6 +450,47 @@ const styles = {
         width: 12,
         height: 12,
         borderRadius: '50%'
+    },
+    errorContainer: {
+        width: '100%',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fef2f2'
+    },
+    errorBox: {
+        backgroundColor: 'white',
+        padding: 32,
+        borderRadius: 12,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        textAlign: 'center',
+        maxWidth: 400
+    },
+    errorTitle: {
+        color: '#dc2626',
+        margin: '0 0 12px 0'
+    },
+    errorText: {
+        color: '#7f1d1d',
+        margin: '0 0 8px 0'
+    },
+    errorHint: {
+        color: '#6b7280',
+        margin: 0,
+        fontSize: 13
+    },
+    loadingContainer: {
+        width: '100%',
+        height: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f3f4f6'
+    },
+    loadingSpinner: {
+        fontSize: 18,
+        color: '#6b7280'
     }
 };
 
