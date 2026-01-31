@@ -8,6 +8,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 import simpy
 import math
+import random
 from .rider import Rider
 from .battery_pool import BatteryPool
 from .rider_entity import RiderEntity
@@ -31,9 +32,11 @@ class StationProcess:
         event_logger: EventLogger,
         swap_time_sec: int = 180,
         queue_limit: int = None,
+
         simulation_start_time: Optional[datetime] = None,
         latitude: float = 0.0,
-        longitude: float = 0.0
+        longitude: float = 0.0,
+        pricing_config: dict = None
     ):
         """
         Initialize station process.
@@ -62,6 +65,7 @@ class StationProcess:
         self.simulation_start_time = simulation_start_time
         self.latitude = latitude
         self.longitude = longitude
+        self.pricing_config = pricing_config or {}
         
         # Track current queue length for capacity checks
         self.current_queue_length = 0
@@ -252,12 +256,34 @@ class StationProcess:
             # Get current inventory for logging
             current_inventory = self.battery_pool.get_available_count()
             
+            # Calculate financials based on BatterySmart pricing model
+            p_config = self.pricing_config
+            is_secondary = random.random() < p_config.get("secondary_prob", 0.3)
+            base_price = p_config.get("secondary_price", 70.0) if is_secondary else p_config.get("primary_price", 170.0)
+            
+            penalty = 0.0
+            if random.random() < p_config.get("penalty_prob", 0.05):
+                penalty = p_config.get("penalty_price", 60.0)
+                
+            service_charge = p_config.get("service_charge", 40.0)
+            total_revenue = base_price + penalty + service_charge
+
             self.event_logger.log_event(
                 event_type="swap_complete",
                 station_id=self.station_id,
                 rider_id=rider.id,
                 timestamp=self.get_current_simtime_iso(),
-                metadata={"inventory_level": current_inventory}
+                metadata={
+                    "wait_time_minutes": (datetime.utcnow() - rider.arrival_time).total_seconds() / 60.0 if rider.arrival_time else 0,
+                    "financials": {
+                        "revenue": total_revenue,
+                        "base_price": base_price,
+                        "type": "secondary" if is_secondary else "primary",
+                        "penalty": penalty,
+                        "service_charge": service_charge
+                    },
+                    "inventory_level": current_inventory
+                }
             )
             print(f"[DEBUG] process_swap: swap_complete logged, rider status={rider.status.value}")
         finally:

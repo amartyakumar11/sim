@@ -99,12 +99,25 @@ def build_real_simulation_config(raw_config: dict) -> dict:
     
     stations = []
     
+    # Parse interventions first to get pricing
+    interventions = raw_config.get("interventions", {})
+    pricing_config = interventions.get("pricing", {
+        "primary_price": 170.0,
+        "secondary_price": 70.0,
+        "secondary_prob": 0.3,
+        "penalty_price": 60.0,
+        "penalty_prob": 0.05,
+        "service_charge": 40.0
+    })
+    
     for idx, raw_station in enumerate(raw_stations):
         station = {}
         
-        if "station_id" not in raw_station:
-            raise ValueError(f"Station {idx}: station_id is required")
-        station["station_id"] = raw_station["station_id"]
+        # Identity
+        station_id = raw_station.get("station_id") or raw_station.get("id")
+        if station_id is None:
+            raise ValueError(f"Station {idx}: station_id or id is required")
+        station["station_id"] = station_id
         
         station["zone_id"] = raw_station.get("zone_id", "Z1")
         
@@ -160,6 +173,9 @@ def build_real_simulation_config(raw_config: dict) -> dict:
         # Add chargers for compatibility
         station["chargers_total"] = int(raw_station.get("chargers_total", station["swap_bays"]))
         
+        # Add pricing config
+        station["pricing"] = pricing_config
+        
         stations.append(station)
     
     # 4️⃣ Demand block
@@ -179,6 +195,22 @@ def build_real_simulation_config(raw_config: dict) -> dict:
         raise ValueError("Demand rate must be > 0")
     
     demand["model"] = "poisson"
+    
+    # Parse demand multipliers from interventions
+    interventions = raw_config.get("interventions", {})
+    
+    # Global demand multiplier
+    demand_multiplier = interventions.get("demand_multiplier", 1.0)
+    if not isinstance(demand_multiplier, (int, float)) or demand_multiplier <= 0:
+        raise ValueError("demand_multiplier must be a positive number")
+    demand["global_multiplier"] = float(demand_multiplier)
+    
+    # Zone-specific demand multipliers
+    zone_demand_multipliers = interventions.get("zone_demand_multipliers", {})
+    for zone_id, multiplier in zone_demand_multipliers.items():
+        if not isinstance(multiplier, (int, float)) or multiplier <= 0:
+            raise ValueError(f"zone_demand_multipliers[{zone_id}] must be positive")
+    demand["zone_multipliers"] = {k: float(v) for k, v in zone_demand_multipliers.items()}
     
     # 5️⃣ Routing block (fixed for Level 1)
     routing = {
@@ -484,7 +516,8 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
                 queue_limit=station_config["queue_limit"],
                 simulation_start_time=start_time,
                 latitude=station_config.get("latitude", 0.0),
-                longitude=station_config.get("longitude", 0.0)
+                longitude=station_config.get("longitude", 0.0),
+                pricing_config=station_config.get("pricing")
             )
             stations[station_id] = station_process
 

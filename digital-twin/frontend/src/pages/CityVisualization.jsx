@@ -13,7 +13,9 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import CityMapView from '../components/CityMapView';
+import { simulationAPI } from '../services/api';
 import SimulationLogs from '../components/SimulationLogs';
 import {
     getMinuteRange,
@@ -26,6 +28,9 @@ import {
 const PLAYBACK_INTERVAL_MS = 500; // Advance every 500ms
 
 const CityVisualization = () => {
+    const [searchParams] = useSearchParams();
+    const runId = searchParams.get('runId');
+
     // Data state
     const [cityGraph, setCityGraph] = useState(null);
     const [zonePressure, setZonePressure] = useState([]);
@@ -41,9 +46,95 @@ const CityVisualization = () => {
     const [minMinute, setMinMinute] = useState(0);
     const [maxMinute, setMaxMinute] = useState(0);
 
-    // Load data on mount - try Lucknow simulation data first, fallback to sample
+    // Load data on mount - either from API (if runId) or static files
     useEffect(() => {
         const loadData = async () => {
+            // If runId is present, load from API
+            if (runId) {
+                try {
+                    setLoading(true);
+                    const result = await simulationAPI.getJobResult(runId);
+
+                    // Set data from API response
+                    setStationTimelines(result.station_timelines || {});
+                    setZonePressure(result.zone_pressure || []);
+                    setRiderTraces(result.rider_traces || {});
+                    setRecommendations(result.recommendations || []);
+
+                    // Build custom city graph from city_config (submitted stations)
+                    const cityConfig = result.city_config || {};
+                    const configStations = cityConfig.stations || [];
+
+                    // Create coordinate lookup from submitted city_config
+                    const stationCoordMap = {};
+                    configStations.forEach(station => {
+                        stationCoordMap[station.station_id] = {
+                            latitude: station.lat,
+                            longitude: station.lon,
+                            zone_id: station.zone_id,
+                            chargers_total: station.chargers_total || 4
+                        };
+                    });
+
+                    // Build stations from station_timelines + city_config coordinates
+                    const customStations = Object.entries(result.station_timelines || {}).map(([stationId, data]) => {
+                        const coords = stationCoordMap[stationId] || {};
+                        return {
+                            station_id: stationId,
+                            zone_id: coords.zone_id || data.zone || 'unknown',
+                            latitude: coords.latitude || 26.8467,
+                            longitude: coords.longitude || 80.9462,
+                            chargers_total: coords.chargers_total || data.chargers || 4,
+                            swap_bays: data.swap_bays || 4,
+                            inventory_capacity: data.inventory_capacity || 20
+                        };
+                    });
+
+
+                    // Build zones from city_config
+                    const configZones = cityConfig.zones || [];
+                    const customZones = configZones.map(zoneId => ({
+                        zone_id: zoneId,
+                        name: zoneId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                    }));
+
+                    setCityGraph({
+                        metadata: {
+                            city: 'Custom Simulation',
+                            total_stations: customStations.length,
+                            total_zones: customZones.length
+                        },
+                        stations: customStations,
+                        zones: customZones
+                    });
+
+                    // Calculate minute range
+                    const allMinutes = [];
+                    Object.values(result.station_timelines || {}).forEach(station => {
+                        if (station.timeline) {
+                            station.timeline.forEach(entry => allMinutes.push(entry.minute));
+                        }
+                    });
+
+                    if (allMinutes.length > 0) {
+                        const min = Math.min(...allMinutes);
+                        const max = Math.max(...allMinutes);
+                        setMinMinute(min);
+                        setMaxMinute(max);
+                        setCurrentMinute(min);
+                    }
+
+                    setLoading(false);
+                    return; // Exit early, don't load static files
+                } catch (err) {
+                    console.error('Failed to load simulation results:', err);
+                    setError(`Failed to load simulation ${runId}: ${err.message}`);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Otherwise, load static files (default Lucknow data)
             try {
                 // Try loading Lucknow simulation data
                 const [stationTimelineRes, zonePressureRes, riderTracesRes] = await Promise.all([

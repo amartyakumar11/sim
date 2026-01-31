@@ -66,8 +66,16 @@ class ROIEngine:
         Returns:
             Total revenue in currency units
         """
+        # Prefer calculated revenue from KPI engine (BatterySmart model)
+        if "revenue" in self.kpis:
+            return self.kpis["revenue"]
+            
+        financials = self.kpis.get("financials")
+        if financials:
+            return financials.get("total_revenue", 0.0)
+
         throughput = self.kpis.get("throughput", 0)
-        revenue_per_swap = self.config.get("revenue_per_swap", 0.0)
+        revenue_per_swap = self.config.get("revenue_per_swap", 50.0)
 
         return throughput * revenue_per_swap
 

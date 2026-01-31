@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { 
-  Card, 
-  Row, 
-  Col, 
-  Statistic, 
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
   Alert,
   Spin,
   Typography,
@@ -16,7 +16,7 @@ import {
   Table,
   Tooltip,
 } from 'antd'
-import { 
+import {
   ClockCircleOutlined,
   ThunderboltOutlined,
   RiseOutlined,
@@ -24,15 +24,15 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined
 } from '@ant-design/icons'
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip as ChartTooltip, 
-  Legend, 
-  ResponsiveContainer 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ChartTooltip,
+  Legend,
+  ResponsiveContainer
 } from 'recharts'
 import { simulationAPI } from '../services/api'
 
@@ -69,7 +69,7 @@ function ResultsDashboard() {
   const { runId } = useParams()
   const [searchParams] = useSearchParams()
   const runIdFromParams = runId || searchParams.get('runId')
-  
+
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -108,20 +108,20 @@ function ResultsDashboard() {
         const framesPath = result.artifacts.frames.replace('/app/data/', '')
         const response = await fetch(`http://localhost:8000/data/${framesPath}`)
         const text = await response.text()
-        
+
         // Parse NDJSON (newline-delimited JSON)
         const frames = text
           .trim()
           .split('\n')
           .map(line => JSON.parse(line))
-        
+
         // Transform to chart format
         const chartData = frames.map(frame => ({
           time: frame.t,
           wait_time: frame.wait_time,
           utilization: frame.utilization || 0
         }))
-        
+
         setTimeseriesData(chartData)
       } catch (err) {
         console.error('Failed to fetch frames:', err)
@@ -202,16 +202,17 @@ function ResultsDashboard() {
 
   // Defensive: some runs may return partial/older result objects
   const summary = result?.summary || {}
+  console.log("Summary Data:", summary)
   const artifacts = result?.artifacts || {}
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       {/* Page Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'flex-start', 
-        marginBottom: 32 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 32
       }}>
         <div>
           <h1 style={{
@@ -227,8 +228,8 @@ function ResultsDashboard() {
             <span style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>
               Run ID:
             </span>
-            <Text code style={{ 
-              fontSize: 13, 
+            <Text code style={{
+              fontSize: 13,
               fontFamily: 'monospace',
               background: 'var(--color-bg-subtle)',
               padding: '4px 10px',
@@ -261,7 +262,7 @@ function ResultsDashboard() {
           >
             {showDataLayer ? 'Hide Charts' : 'Show Charts'}
           </Button>
-          <Button 
+          <Button
             onClick={() => setDrawerOpen(true)}
             style={{ borderRadius: 'var(--radius-md)', height: 38 }}
           >
@@ -278,16 +279,16 @@ function ResultsDashboard() {
         marginBottom: 24
       }}>
         {[
-          { 
+          {
             label: 'Avg Wait Time',
             tooltip: 'Average time riders wait in queue before getting a battery swap. Lower is better. Target: <5 min',
-            value: formatFixed(summary.avg_wait_time, 2), 
+            value: formatFixed(summary.avg_wait_time, 2),
             suffix: 'min',
             icon: <ClockCircleOutlined />,
             color: (asNumber(summary.avg_wait_time) ?? 0) > 10 ? '#ef4444' : '#10b981',
             status: (asNumber(summary.avg_wait_time) ?? 0) > 10 ? 'warning' : 'good'
           },
-          { 
+          {
             label: 'Lost Swaps',
             tooltip: 'Riders who left because queues were full. Indicates insufficient capacity. Target: 0',
             value: asNumber(summary.lost_swaps) ?? 0,
@@ -295,33 +296,52 @@ function ResultsDashboard() {
             color: '#ef4444',
             status: 'critical'
           },
-          { 
+          {
             label: 'Charger Utilization',
             tooltip: 'Percentage of time swap bays were actively in use. Higher means better asset efficiency. Target: 60-80%',
-            value: ((asNumber(summary.utilization || summary.charger_utilization) ?? 0) * 100).toFixed(1), 
+            value: ((asNumber(summary.utilization || summary.charger_utilization) ?? 0) * 100).toFixed(1),
             suffix: '%',
             icon: <ThunderboltOutlined />,
             color: '#3b82f6',
             status: 'info'
           },
-          { 
+          {
             label: 'City Throughput',
             tooltip: 'Total successful battery swaps completed. Measures service volume and revenue potential.',
-            value: asNumber(summary.throughput || summary.city_throughput) ?? 0, 
+            value: asNumber(summary.throughput || summary.city_throughput) ?? 0,
             suffix: 'swaps',
             icon: <RiseOutlined />,
             color: '#10b981',
             status: 'good'
           },
-          { 
+          {
+            label: 'Total Revenue',
+            tooltip: (
+              <div>
+                <div style={{ marginBottom: 4 }}>Total earnings from operations</div>
+                {summary.financials ? (
+                  <div style={{ fontSize: 11, opacity: 0.9 }}>
+                    <div>Primary: {summary.financials.primary_swaps} swaps</div>
+                    <div>Secondary: {summary.financials.secondary_swaps} swaps</div>
+                    <div>Penalties: ₹{summary.financials.total_penalties}</div>
+                  </div>
+                ) : 'BatterySmart Model'}
+              </div>
+            ),
+            value: `₹${(asNumber(summary.revenue) ?? 0).toLocaleString()}`,
+            icon: <DollarOutlined />,
+            color: '#10b981',
+            status: 'good'
+          },
+          {
             label: 'Idle Inventory',
             tooltip: 'Average % of batteries sitting unused at stations. Too high = wasted capital, too low = risk of stockouts.',
-            value: formatFixed(summary.idle_inventory, 1), 
+            value: formatFixed(summary.idle_inventory, 1),
             suffix: '%',
             color: '#71717a',
             status: 'neutral'
           },
-          { 
+          {
             label: 'Cost Impact',
             tooltip: 'Total operational costs: energy, staff, battery depreciation, and maintenance. Impacts profitability.',
             value: formatFixed(summary.operational_cost || summary.total_cost_impact, 2),
@@ -329,15 +349,15 @@ function ResultsDashboard() {
             color: '#f59e0b',
             status: 'neutral'
           },
-          { 
+          {
             label: 'ROI',
             tooltip: 'Return on Investment: (Net Profit / Capital Investment) × 100. Measures financial viability of the network.',
-            value: ((asNumber(summary.roi) ?? 0) * 100).toFixed(1), 
+            value: ((asNumber(summary.roi) ?? 0) * 100).toFixed(1),
             suffix: '%',
             color: (asNumber(summary.roi) ?? 0) > 0.2 ? '#10b981' : '#f59e0b',
             status: (asNumber(summary.roi) ?? 0) > 0.2 ? 'good' : 'warning'
           },
-          { 
+          {
             label: 'Events Logged',
             tooltip: 'Total simulation events recorded (arrivals, queue joins, swaps, etc). For debugging and analysis.',
             value: asNumber(result.events_count) ?? 0,
@@ -345,12 +365,12 @@ function ResultsDashboard() {
             status: 'neutral'
           }
         ].map((kpi, i) => (
-          <Tooltip 
+          <Tooltip
             key={i}
             title={
               <div style={{ padding: '4px 0' }}>
-                <div style={{ 
-                  fontWeight: 600, 
+                <div style={{
+                  fontWeight: 600,
                   fontSize: 13,
                   marginBottom: 6,
                   color: '#fff',
@@ -361,8 +381,8 @@ function ResultsDashboard() {
                   {kpi.icon && <span style={{ fontSize: 14 }}>{kpi.icon}</span>}
                   {kpi.label}
                 </div>
-                <div style={{ 
-                  fontSize: 12, 
+                <div style={{
+                  fontSize: 12,
                   lineHeight: 1.5,
                   color: 'rgba(255, 255, 255, 0.85)'
                 }}>
@@ -378,7 +398,7 @@ function ResultsDashboard() {
               padding: '12px 14px',
               boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)'
             }}
-            arrow={{ 
+            arrow={{
               pointAtCenter: true,
             }}
           >
@@ -411,41 +431,41 @@ function ResultsDashboard() {
                 }}>
                   {kpi.label}
                 </span>
-              {kpi.icon && (
-                <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 'var(--radius-md)',
-                  background: `${kpi.color}15`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 16,
-                  color: kpi.color
-                }}>
-                  {kpi.icon}
-                </div>
-              )}
-            </div>
-            <div style={{
-              fontSize: 28,
-              fontWeight: 700,
-              color: kpi.color,
-              letterSpacing: '-0.02em',
-              lineHeight: 1
-            }}>
-              {kpi.value}
-              {kpi.suffix && (
-                <span style={{ 
-                  fontSize: 16, 
-                  fontWeight: 500, 
-                  color: 'var(--color-text-tertiary)',
-                  marginLeft: 4
-                }}>
-                  {kpi.suffix}
-                </span>
-              )}
-            </div>
+                {kpi.icon && (
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 'var(--radius-md)',
+                    background: `${kpi.color}15`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 16,
+                    color: kpi.color
+                  }}>
+                    {kpi.icon}
+                  </div>
+                )}
+              </div>
+              <div style={{
+                fontSize: 28,
+                fontWeight: 700,
+                color: kpi.color,
+                letterSpacing: '-0.02em',
+                lineHeight: 1
+              }}>
+                {kpi.value}
+                {kpi.suffix && (
+                  <span style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: 'var(--color-text-tertiary)',
+                    marginLeft: 4
+                  }}>
+                    {kpi.suffix}
+                  </span>
+                )}
+              </div>
             </div>
           </Tooltip>
         ))}
@@ -453,7 +473,7 @@ function ResultsDashboard() {
 
       {/* Data revelation layer (hidden by default) */}
       {!showDataLayer ? (
-        <div style={{ 
+        <div style={{
           padding: 48,
           background: 'var(--color-bg-elevated)',
           border: '1px solid var(--color-border-light)',
@@ -461,8 +481,8 @@ function ResultsDashboard() {
           textAlign: 'center',
           boxShadow: 'var(--shadow-sm)'
         }}>
-          <p style={{ 
-            margin: 0, 
+          <p style={{
+            margin: 0,
             color: 'var(--color-text-secondary)',
             fontSize: 15,
             lineHeight: 1.6
@@ -483,10 +503,10 @@ function ResultsDashboard() {
                 borderRadius: 'var(--radius-xl)',
                 boxShadow: 'var(--shadow-sm)'
               }}>
-                <h3 style={{ 
-                  fontSize: 16, 
-                  fontWeight: 600, 
-                  color: 'var(--color-text-primary)', 
+                <h3 style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary)',
                   marginBottom: 20,
                   letterSpacing: '-0.01em'
                 }}>
@@ -495,16 +515,16 @@ function ResultsDashboard() {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={timeseriesData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" />
-                    <XAxis 
-                      dataKey="time" 
+                    <XAxis
+                      dataKey="time"
                       label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }}
                       tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
                     />
-                    <YAxis 
+                    <YAxis
                       label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft' }}
                       tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
                     />
-                    <ChartTooltip 
+                    <ChartTooltip
                       contentStyle={{
                         background: 'var(--color-bg-elevated)',
                         border: '1px solid var(--color-border-light)',
@@ -533,10 +553,10 @@ function ResultsDashboard() {
                 borderRadius: 'var(--radius-xl)',
                 boxShadow: 'var(--shadow-sm)'
               }}>
-                <h3 style={{ 
-                  fontSize: 16, 
-                  fontWeight: 600, 
-                  color: 'var(--color-text-primary)', 
+                <h3 style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary)',
                   marginBottom: 20,
                   letterSpacing: '-0.01em'
                 }}>
@@ -545,16 +565,16 @@ function ResultsDashboard() {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={timeseriesData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-light)" />
-                    <XAxis 
-                      dataKey="time" 
+                    <XAxis
+                      dataKey="time"
                       label={{ value: 'Time (min)', position: 'insideBottom', offset: -5 }}
                       tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
                     />
-                    <YAxis 
+                    <YAxis
                       label={{ value: 'Utilization', angle: -90, position: 'insideLeft' }}
                       tick={{ fontSize: 12, fill: 'var(--color-text-tertiary)' }}
                     />
-                    <ChartTooltip 
+                    <ChartTooltip
                       contentStyle={{
                         background: 'var(--color-bg-elevated)',
                         border: '1px solid var(--color-border-light)',
@@ -585,10 +605,10 @@ function ResultsDashboard() {
               borderRadius: 'var(--radius-xl)',
               boxShadow: 'var(--shadow-sm)'
             }}>
-              <h3 style={{ 
-                fontSize: 16, 
-                fontWeight: 600, 
-                color: 'var(--color-text-primary)', 
+              <h3 style={{
+                fontSize: 16,
+                fontWeight: 600,
+                color: 'var(--color-text-primary)',
                 marginBottom: 20,
                 letterSpacing: '-0.01em'
               }}>
@@ -625,7 +645,7 @@ function ResultsDashboard() {
       )}
 
       {/* Artifacts Information */}
-      <div style={{ 
+      <div style={{
         padding: 24,
         background: 'var(--color-bg-elevated)',
         border: '1px solid var(--color-border-light)',
@@ -633,10 +653,10 @@ function ResultsDashboard() {
         marginTop: 24,
         boxShadow: 'var(--shadow-sm)'
       }}>
-        <h3 style={{ 
-          fontSize: 16, 
-          fontWeight: 600, 
-          color: 'var(--color-text-primary)', 
+        <h3 style={{
+          fontSize: 16,
+          fontWeight: 600,
+          color: 'var(--color-text-primary)',
           marginBottom: 16,
           letterSpacing: '-0.01em'
         }}>
@@ -654,18 +674,18 @@ function ResultsDashboard() {
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--color-border-light)'
             }}>
-              <div style={{ 
-                fontSize: 11, 
-                fontWeight: 600, 
-                color: 'var(--color-text-tertiary)', 
+              <div style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--color-text-tertiary)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
                 marginBottom: 6
               }}>
                 {artifact.label}
               </div>
-              <Text code style={{ 
-                fontSize: 12, 
+              <Text code style={{
+                fontSize: 12,
                 fontFamily: 'monospace',
                 background: 'var(--color-bg-elevated)',
                 padding: '4px 8px',
@@ -690,8 +710,8 @@ function ResultsDashboard() {
           body: { padding: 24 }
         }}
       >
-        <p style={{ 
-          color: 'var(--color-text-secondary)', 
+        <p style={{
+          color: 'var(--color-text-secondary)',
           marginBottom: 24,
           fontSize: 14,
           lineHeight: 1.6
@@ -700,27 +720,27 @@ function ResultsDashboard() {
         </p>
 
         <Divider style={{ borderColor: 'var(--color-border-light)' }} />
-        
-        <h4 style={{ 
-          fontWeight: 600, 
-          fontSize: 14, 
-          color: 'var(--color-text-primary)', 
+
+        <h4 style={{
+          fontWeight: 600,
+          fontSize: 14,
+          color: 'var(--color-text-primary)',
           marginBottom: 12,
           marginTop: 0
         }}>
           Run Summary
         </h4>
-        <pre style={{ 
-          fontSize: 12, 
-          background: 'var(--color-bg-subtle)', 
-          padding: 16, 
-          borderRadius: 'var(--radius-md)', 
+        <pre style={{
+          fontSize: 12,
+          background: 'var(--color-bg-subtle)',
+          padding: 16,
+          borderRadius: 'var(--radius-md)',
           overflow: 'auto',
           border: '1px solid var(--color-border-light)',
           lineHeight: 1.5,
           color: 'var(--color-text-secondary)'
         }}>
-{JSON.stringify(summary, null, 2)}
+          {JSON.stringify(summary, null, 2)}
         </pre>
       </Drawer>
     </div>

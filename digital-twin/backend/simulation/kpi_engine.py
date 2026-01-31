@@ -59,13 +59,16 @@ class KPIEngine:
         throughput = self._compute_throughput()
         utilization = self._compute_utilization()
         idle_inventory = self._compute_idle_inventory()
+        financials = self._compute_financials()
 
         return {
+            "revenue": financials.get("total_revenue", 0.0),
             "avg_wait_time": avg_wait_time,
             "lost_swaps": lost_swaps,
             "utilization": utilization,
             "throughput": throughput,
-            "idle_inventory": idle_inventory
+            "idle_inventory": idle_inventory,
+            "financials": financials
         }
 
     def _compute_avg_wait_time(self) -> float:
@@ -309,6 +312,47 @@ class KPIEngine:
         # Calculate average
         total_idle_sum = sum(station_idle_sum.values())
         return total_idle_sum / total_sim_time if total_sim_time > 0 else 0.0
+
+
+
+    def _compute_financials(self) -> dict:
+        """
+        Compute financial metrics from swap events.
+        
+        Returns:
+            Dictionary containing financial aggregates
+        """
+        total_revenue = 0.0
+        primary_swaps = 0
+        secondary_swaps = 0
+        total_penalties = 0.0
+        total_service_charges = 0.0
+        
+        for event in self.events:
+            if event.get("event_type") == "swap_complete":
+                # Check for financials in metadata
+                metadata = event.get("metadata", {})
+                fin = metadata.get("financials", {})
+                
+                # Sum up revenue elements
+                total_revenue += fin.get("revenue", 0.0)
+                
+                # Count swap types
+                if fin.get("type") == "primary":
+                    primary_swaps += 1
+                elif fin.get("type") == "secondary":
+                    secondary_swaps += 1
+                
+                total_penalties += fin.get("penalty", 0.0)
+                total_service_charges += fin.get("service_charge", 0.0)
+                
+        return {
+            "total_revenue": total_revenue,
+            "primary_swaps": primary_swaps,
+            "secondary_swaps": secondary_swaps,
+            "total_penalties": total_penalties,
+            "total_service_charges": total_service_charges
+        }
 
     def snapshot(self) -> dict:
         """

@@ -246,6 +246,21 @@ class DemandGenerator:
         # Current weather state (Level 1: not used)
         self.current_weather = config.get("current_weather", "sunny")
         
+        # Demand multipliers (from interventions)
+        self.global_multiplier = config.get("global_multiplier", 1.0)
+        self.zone_multipliers = config.get("zone_multipliers", {})
+        
+        # Pre-calculate station weights for zone-specific demand
+        self.station_weights = [self.zone_multipliers.get(s.zone_id, 1.0) for s in stations]
+        self.use_weighted_selection = any(w != 1.0 for w in self.station_weights)
+        
+        # Calculate average zone multiplier to scale total demand
+        # (e.g. if one zone is 2x, total city demand should increase slightly)
+        if stations:
+            self.avg_zone_multiplier = sum(self.station_weights) / len(stations)
+        else:
+            self.avg_zone_multiplier = 1.0
+
         # Arrival counter for unique rider IDs
         self.arrival_counter = 0
 
@@ -269,10 +284,13 @@ class DemandGenerator:
         
         # Generate arrivals using Poisson process (exponential inter-arrival times)
         while current_time < end_time:
+            # Apply global multiplier AND average zone multiplier to total demand rate
+            effective_rate = self.base_demand_rate_per_min * self.global_multiplier * self.avg_zone_multiplier
+            
             # Sample inter-arrival time from exponential distribution
             # Rate parameter is lambda (arrivals per minute)
             # Inter-arrival time ~ Exp(lambda), mean = 1/lambda minutes
-            inter_arrival_minutes = self.rng.expovariate(self.base_demand_rate_per_min)
+            inter_arrival_minutes = self.rng.expovariate(effective_rate)
             
             # Advance time
             current_time = current_time + timedelta(minutes=inter_arrival_minutes)
@@ -325,7 +343,7 @@ class DemandGenerator:
 
     def select_station(self) -> Station:
         """
-        Select a station deterministically (round-robin for Level 1).
+        Select a station based on zone weights (or round-robin if flat weights).
 
         Returns:
             Selected Station instance
@@ -333,10 +351,14 @@ class DemandGenerator:
         if not self.stations:
             raise ValueError("No stations available")
         
-        # Level 1: Simple round-robin selection
-        # Use arrival counter to distribute evenly
-        station_index = self.arrival_counter % len(self.stations)
-        return self.stations[station_index]
+        # If not using weighted selection, use deterministic round-robin for speed/consistency
+        if not self.use_weighted_selection:
+            station_index = self.arrival_counter % len(self.stations)
+            return self.stations[station_index]
+            
+        # Weighted selection based on zone multipliers
+        # self.rng.choices is available in Python 3.6+
+        return self.rng.choices(self.stations, weights=self.station_weights, k=1)[0]
 
     def snapshot(self) -> dict:
         """

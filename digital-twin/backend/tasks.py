@@ -179,7 +179,9 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
             "idle_inventory": kpis.get("idle_inventory"),
             "city_throughput": kpis.get("throughput"),  # Map throughput -> city_throughput
             "total_cost_impact": kpis.get("operational_cost"),  # Map operational_cost -> total_cost_impact
-            "roi": kpis.get("roi")
+            "roi": kpis.get("roi"),
+            "revenue": kpis.get("revenue"),
+            "financials": kpis.get("financials")
         }
         
         final_result = {
@@ -192,7 +194,12 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
                 "events": f"{data_dir}/events.ndjson",
                 "frames": f"{data_dir}/frames.ndjson", 
                 "summary": f"{data_dir}/summary.json"
-            }
+            },
+            # Include timeline data for frontend visualization
+            "station_timelines": simulation_result.get("station_timelines", {}),
+            "zone_pressure": simulation_result.get("zone_pressure", []),
+            "rider_traces": simulation_result.get("rider_traces", {}),
+            "city_config": runtime_config.get("city_config", {})  # Include original city config
         }
         
         # Store final result

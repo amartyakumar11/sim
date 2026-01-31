@@ -150,6 +150,8 @@ class KPISummary(BaseModel):
     city_throughput: Optional[int] = Field(None, description="Total successful swaps")
     total_cost_impact: Optional[float] = Field(None, description="Total operational cost impact")
     roi: Optional[float] = Field(None, description="Return on investment")
+    revenue: Optional[float] = Field(None, description="Total revenue generated")
+    financials: Optional[Dict[str, Any]] = Field(None, description="Detailed financial breakdown")
 
 class SimulationResult(BaseModel):
     """Complete simulation result"""

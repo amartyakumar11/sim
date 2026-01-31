@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { 
-  Card, 
-  Table, 
-  Tag, 
-  Button, 
-  Space, 
-  Progress, 
+import {
+  Card,
+  Table,
+  Tag,
+  Button,
+  Space,
+  Progress,
   Typography,
   message,
   Modal,
   Descriptions
 } from 'antd'
-import { 
-  ReloadOutlined, 
-  EyeOutlined, 
+import {
+  ReloadOutlined,
+  EyeOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  LoadingOutlined
+
+  LoadingOutlined,
+  BarChartOutlined
 } from '@ant-design/icons'
 import { simulationAPI } from '../services/api'
 
@@ -48,7 +50,7 @@ function JobMonitor() {
   const fetchJobStatus = async (runId) => {
     try {
       const status = await simulationAPI.getJobStatus(runId)
-      
+
       // Update or add job to list
       setJobs(prevJobs => {
         const existingIndex = prevJobs.findIndex(j => j.run_id === runId)
@@ -84,6 +86,10 @@ function JobMonitor() {
   }
 
   const viewResults = (runId) => {
+    navigate(`/city-map?runId=${runId}`)
+  }
+
+  const viewDashboard = (runId) => {
     navigate(`/results/${runId}`)
   }
 
@@ -95,7 +101,7 @@ function JobMonitor() {
       failed: { color: 'error', icon: <CloseCircleOutlined /> },
       cancelled: { color: 'warning', icon: <CloseCircleOutlined /> }
     }
-    
+
     const config = statusConfig[status] || statusConfig.submitted
     return (
       <Tag color={config.color} icon={config.icon}>
@@ -125,8 +131,8 @@ function JobMonitor() {
       key: 'progress',
       width: 150,
       render: (progress) => (
-        <Progress 
-          percent={progress ? Math.round(progress * 100) : 0} 
+        <Progress
+          percent={progress ? Math.round(progress * 100) : 0}
           size="small"
           status={progress === 1 ? 'success' : 'active'}
         />
@@ -151,21 +157,30 @@ function JobMonitor() {
       width: 180,
       render: (_, record) => (
         <Space>
-          <Button 
-            size="small" 
+          <Button
+            size="small"
             icon={<EyeOutlined />}
             onClick={() => viewDetails(record)}
           >
             Details
           </Button>
           {record.status === 'completed' && (
-            <Button 
-              size="small" 
-              type="primary"
-              onClick={() => viewResults(record.run_id)}
-            >
-              Results
-            </Button>
+            <>
+              <Button
+                size="small"
+                icon={<BarChartOutlined />}
+                onClick={() => viewDashboard(record.run_id)}
+              >
+                Results
+              </Button>
+              <Button
+                size="small"
+                type="primary"
+                onClick={() => viewResults(record.run_id)}
+              >
+                Map
+              </Button>
+            </>
           )}
         </Space>
       )
@@ -175,11 +190,11 @@ function JobMonitor() {
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       {/* Page Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: 32 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 32
       }}>
         <div>
           <h1 style={{
@@ -199,8 +214,8 @@ function JobMonitor() {
             Track all simulation runs and their execution status
           </p>
         </div>
-        <Button 
-          icon={<ReloadOutlined />} 
+        <Button
+          icon={<ReloadOutlined />}
           onClick={refreshJobs}
           loading={loading}
           style={{
@@ -224,7 +239,7 @@ function JobMonitor() {
           columns={columns}
           dataSource={jobs}
           rowKey="run_id"
-          pagination={{ 
+          pagination={{
             pageSize: 10,
             showSizeChanger: false,
             style: { padding: '16px 24px' }
@@ -241,25 +256,38 @@ function JobMonitor() {
         open={detailsVisible}
         onCancel={() => setDetailsVisible(false)}
         footer={[
-          <Button 
-            key="close" 
+          <Button
+            key="close"
             onClick={() => setDetailsVisible(false)}
             style={{ borderRadius: 'var(--radius-md)' }}
           >
             Close
           </Button>,
           selectedJob?.status === 'completed' && (
-            <Button 
-              key="results" 
-              type="primary"
-              onClick={() => {
-                setDetailsVisible(false)
-                viewResults(selectedJob.run_id)
-              }}
-              style={{ borderRadius: 'var(--radius-md)' }}
-            >
-              View Results
-            </Button>
+            <>
+              <Button
+                key="dashboard"
+                icon={<BarChartOutlined />}
+                onClick={() => {
+                  setDetailsVisible(false)
+                  viewDashboard(selectedJob.run_id)
+                }}
+                style={{ borderRadius: 'var(--radius-md)' }}
+              >
+                View Results
+              </Button>
+              <Button
+                key="results"
+                type="primary"
+                onClick={() => {
+                  setDetailsVisible(false)
+                  viewResults(selectedJob.run_id)
+                }}
+                style={{ borderRadius: 'var(--radius-md)' }}
+              >
+                View on Map
+              </Button>
+            </>
           )
         ]}
         width={700}
@@ -274,10 +302,10 @@ function JobMonitor() {
               {getStatusTag(selectedJob.status)}
             </Descriptions.Item>
             <Descriptions.Item label="Progress">
-              <Progress 
+              <Progress
                 percent={selectedJob.progress ? Math.round(selectedJob.progress * 100) : 0}
-                status={selectedJob.status === 'completed' ? 'success' : 
-                        selectedJob.status === 'failed' ? 'exception' : 'active'}
+                status={selectedJob.status === 'completed' ? 'success' :
+                  selectedJob.status === 'failed' ? 'exception' : 'active'}
                 strokeColor={selectedJob.status === 'completed' ? 'var(--color-accent-success)' : 'var(--color-accent-primary)'}
               />
             </Descriptions.Item>
