@@ -305,8 +305,8 @@ const styles = {
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 1000,
-        width: '90%',
-        maxWidth: '800px'
+        width: '60%',
+        maxWidth: '600px'
     },
     playbackPanel: {
         display: 'flex',

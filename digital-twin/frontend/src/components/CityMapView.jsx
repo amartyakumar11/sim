@@ -177,6 +177,45 @@ const CityMapView = ({
         };
     }, [riderTraces, stationCoordsMap, currentMinute]);
 
+    // GENERATE VISUAL QUEUES
+    // Since we don't have exact lat/lon for every waiting rider, we "simulate" the visualization
+    // by scattering points around the station based on the queue count.
+    const queuePointsData = useMemo(() => {
+        const features = [];
+
+        stations.forEach(station => {
+            const state = getStationState(station.station_id);
+            if (state.queue > 0) {
+                // Generate N points around the station
+                for (let i = 0; i < state.queue; i++) {
+                    // Random small offset (approx 10-30 meters)
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 0.0002 + (Math.random() * 0.0001); // ~20m radius
+
+                    features.push({
+                        type: 'Feature',
+                        properties: {
+                            type: 'queued_rider',
+                            stationId: station.station_id
+                        },
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [
+                                station.longitude + Math.cos(angle) * radius,
+                                station.latitude + Math.sin(angle) * radius
+                            ]
+                        }
+                    });
+                }
+            }
+        });
+
+        return {
+            type: 'FeatureCollection',
+            features
+        };
+    }, [stations, stationTimelines, currentMinute]);
+
     // Get hero rider (most swaps)
     const heroRider = useMemo(() => {
         const riders = Object.entries(riderTraces);
@@ -258,6 +297,21 @@ const CityMapView = ({
                             'line-width': 4,
                             'line-dasharray': [2, 1], // MapLibre quirk: this works in paint for some versions but better to be safe
                             'line-opacity': 0.9
+                        }}
+                    />
+                </Source>
+
+                {/* Queue Visualization Source */}
+                <Source id="queue-points" type="geojson" data={queuePointsData}>
+                    <Layer
+                        id="queue-dots"
+                        type="circle"
+                        paint={{
+                            'circle-radius': 3,
+                            'circle-color': '#9333ea', // Rider purple
+                            'circle-stroke-width': 1,
+                            'circle-stroke-color': '#ffffff',
+                            // Fade in/out effect could be here but simple is fine
                         }}
                     />
                 </Source>
@@ -588,7 +642,8 @@ const styles = {
     legend: {
         position: 'absolute',
         bottom: 16,
-        left: 16,
+        bottom: 32,
+        right: 32,
         backgroundColor: 'rgba(255,255,255,0.95)',
         padding: 12,
         borderRadius: 12,

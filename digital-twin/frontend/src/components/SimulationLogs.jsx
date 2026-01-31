@@ -157,10 +157,11 @@ const getColorForType = (type) => {
 const styles = {
     container: {
         position: 'absolute',
-        top: 80,
-        left: 240, // Offset from status overlay
+        bottom: 32,
+        left: 32,
         width: 320,
-        maxHeight: 400,
+        maxHeight: 300,
+
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderRadius: 12,
         boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
