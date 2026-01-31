@@ -105,13 +105,13 @@ const CityMapView = ({
         const isStockout = state.inventory === 0;
         const isCongested = state.queue > state.chargers;
 
-        if (isStockout || isCongested) {
-            return '#ef4444'; // Red
+        if (isStockout) {
+            return '#ef4444'; // Red (Stockout)
         }
-        if (state.queue > 0 && state.inventory > 0) {
-            return '#f59e0b'; // Yellow
+        if (state.inventory < 3) {
+            return '#f59e0b'; // Yellow (Low Inventory / Pressure)
         }
-        return '#22c55e'; // Green
+        return '#22c55e'; // Green (Healthy)
     };
 
     // Build rider path GeoJSON for active riders and redirections (manhattan style)
@@ -177,33 +177,62 @@ const CityMapView = ({
         };
     }, [riderTraces, stationCoordsMap, currentMinute]);
 
-    // GENERATE VISUAL QUEUES
-    // Since we don't have exact lat/lon for every waiting rider, we "simulate" the visualization
-    // by scattering points around the station based on the queue count.
-    const queuePointsData = useMemo(() => {
+    // GENERATE ACTIVE RIDER CROWD
+    // Since queues are often 0 due to rapid redirection, we visualize ALL active riders
+    // to show the scale of the simulation.
+    const activeRiderData = useMemo(() => {
         const features = [];
 
-        stations.forEach(station => {
-            const state = getStationState(station.station_id);
-            if (state.queue > 0) {
-                // Generate N points around the station
-                for (let i = 0; i < state.queue; i++) {
-                    // Random small offset (approx 10-30 meters)
-                    const angle = Math.random() * Math.PI * 2;
-                    const radius = 0.0002 + (Math.random() * 0.0001); // ~20m radius
+        Object.entries(riderTraces).forEach(([riderId, trace]) => {
+            // Check if rider is active in this simulation window
+            // Simplified: If they have swapped recently or are about to swap
+            const swaps = trace.swap_minutes || [];
+            const lastSwap = swaps.filter(m => m <= currentMinute).pop();
+            const nextSwap = swaps.find(m => m > currentMinute);
 
+            // If rider has entered the system (lastSwap exists) and hasn't finished forever (nextSwap exists or recently finished)
+            // Or if they are currently redirecting
+            if (lastSwap || (trace.redirections && trace.redirections.some(r => r.minute <= currentMinute && r.minute > currentMinute - 20))) {
+
+                let lat, lon;
+
+                // If redirecting, interpolate position
+                const activeRedir = trace.redirections?.find(r => r.minute <= currentMinute && r.minute > currentMinute - 15);
+
+                if (activeRedir) {
+                    const from = stationCoordsMap[activeRedir.from_station];
+                    const to = stationCoordsMap[activeRedir.to_station];
+                    if (from && to) {
+                        // Linear interpolation based on time elapsed in redirection (15 mins duration assumed)
+                        const elapsed = currentMinute - activeRedir.minute;
+                        const progress = Math.min(elapsed / 15, 1);
+                        lat = from.lat + (to.lat - from.lat) * progress;
+                        lon = from.lon + (to.lon - from.lon) * progress;
+                    }
+                } else if (lastSwap) {
+                    // Stationary at last station (scattered slightly)
+                    const stationId = trace.swap_stations[swaps.indexOf(lastSwap)];
+                    const station = stationCoordsMap[stationId];
+                    if (station) {
+                        // Deterministic scatter based on RiderID hash to keep them stable
+                        const hash = riderId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                        const angle = (hash % 360) * (Math.PI / 180);
+                        const radius = 0.00015 + ((hash % 10) * 0.00002);
+                        lat = station.lat + Math.sin(angle) * radius;
+                        lon = station.lon + Math.cos(angle) * radius;
+                    }
+                }
+
+                if (lat && lon) {
                     features.push({
                         type: 'Feature',
                         properties: {
-                            type: 'queued_rider',
-                            stationId: station.station_id
+                            type: 'active_rider',
+                            riderId: riderId
                         },
                         geometry: {
                             type: 'Point',
-                            coordinates: [
-                                station.longitude + Math.cos(angle) * radius,
-                                station.latitude + Math.sin(angle) * radius
-                            ]
+                            coordinates: [lon, lat]
                         }
                     });
                 }
@@ -214,7 +243,7 @@ const CityMapView = ({
             type: 'FeatureCollection',
             features
         };
-    }, [stations, stationTimelines, currentMinute]);
+    }, [riderTraces, stationCoordsMap, currentMinute]);
 
     // Get hero rider (most swaps)
     const heroRider = useMemo(() => {
@@ -302,7 +331,7 @@ const CityMapView = ({
                 </Source>
 
                 {/* Queue Visualization Source */}
-                <Source id="queue-points" type="geojson" data={queuePointsData}>
+                <Source id="queue-points" type="geojson" data={activeRiderData}>
                     <Layer
                         id="queue-dots"
                         type="circle"
@@ -481,11 +510,7 @@ const CityMapView = ({
                 </div>
                 <div style={styles.legendItem}>
                     <div style={{ ...styles.legendDot, backgroundColor: '#f59e0b' }} />
-                    <span>Congested (Queueing)</span>
-                </div>
-                <div style={styles.legendItem}>
-                    <div style={{ ...styles.legendDot, backgroundColor: '#ef4444' }} />
-                    <span>Stockout (0 Batteries)</span>
+                    <span>Low Inventory (&#60; 3 Batteries)</span>
                 </div>
                 <div style={styles.legendItem}>
                     <div style={{ ...styles.legendDot, backgroundColor: '#ef4444' }} />
