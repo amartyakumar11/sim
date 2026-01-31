@@ -35,6 +35,7 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { simulationAPI } from '../services/api'
+import CoverageCard from '../components/CoverageCard'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -278,6 +279,10 @@ function ResultsDashboard() {
         gap: 16,
         marginBottom: 24
       }}>
+        {/* Coverage Card (New Level 2 Feature) */}
+        <div style={{ gridColumn: '1 / -1' }}>
+          <CoverageCard scenarioConfig={result ? { city_config: result.city_config } : null} />
+        </div>
         {[
           {
             label: 'Avg Wait Time',

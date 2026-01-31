@@ -223,6 +223,50 @@ async def run_simulation_endpoint(request: SimulationRequest):
             detail=f"Simulation failed: {str(e)}"
         )
 
+@router.post("/analytics/demand-heatmap")
+async def get_demand_heatmap_endpoint(request: ScenarioRequest):
+    """
+    Generate demand heatmap data based on scenario configuration.
+    
+    Returns GeoJSON FeatureCollection with demand intensity per station.
+    """
+    try:
+        from analytics.spatial import calculate_demand_heatmap
+        return calculate_demand_heatmap(request.city_config, request.interventions)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Heatmap generation failed: {str(e)}"
+        )
+
+@router.post("/analytics/coverage")
+async def get_coverage_analysis_endpoint(request: ScenarioRequest):
+    """
+    Analyze network coverage and return health metrics.
+    """
+    try:
+        from analytics.coverage import get_network_health
+        return get_network_health(request.city_config)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Coverage analysis failed: {str(e)}"
+        )
+
+@router.post("/analytics/recommendations")
+async def get_recommendations_endpoint(request: ScenarioRequest):
+    """
+    Suggest optimal locations for new stations.
+    """
+    try:
+        from analytics.recommendations import get_station_recommendations
+        return get_station_recommendations(request.city_config)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Optimization failed: {str(e)}"
+        )
+
 @router.post("/run-scenarios")
 async def run_scenarios_endpoint(request: ScenarioComparisonRequest):
     """

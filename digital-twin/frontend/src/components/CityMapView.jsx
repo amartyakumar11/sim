@@ -11,7 +11,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { BatteryCharging, User, AlertCircle } from 'lucide-react';
+import { BatteryCharging, User, AlertCircle, Layers, Zap } from 'lucide-react';
+import HeatmapLayer from './HeatmapLayer';
+import { simulationAPI } from '../services/api';
+import './CityMapView.css'; // Add CSS import
 
 // --------------------------------------------------------
 // CONFIGURATION - LUCKNOW
@@ -41,6 +44,34 @@ const CityMapView = ({
     const [hoveredStation, setHoveredStation] = useState(null);
     const [lucknowData, setLucknowData] = useState(null);
     const [loadError, setLoadError] = useState(null);
+    const [showHeatmap, setShowHeatmap] = useState(false); // Heatmap toggle state
+
+    // Level 2: Optimization
+    const [optimizing, setOptimizing] = useState(false);
+    const [suggestedStations, setSuggestedStations] = useState([]);
+
+    const handleOptimize = async () => {
+        if (suggestedStations.length > 0) {
+            // Toggle off if already showing
+            setSuggestedStations([]);
+            return;
+        }
+
+        setOptimizing(true);
+        try {
+            const result = await simulationAPI.getRecommendations({
+                description: "optimize_request",
+                city_config: lucknowData
+            });
+            setSuggestedStations(result);
+        } catch (err) {
+            console.error("Optimization failed:", err);
+            // Fallback for demo if API fails (or if running static)
+            // setSuggestedStations(recommendations); 
+        } finally {
+            setOptimizing(false);
+        }
+    };
 
     // STEP 1: Load Lucknow City Graph
     useEffect(() => {
@@ -318,6 +349,22 @@ const CityMapView = ({
                 mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
                 style={{ width: '100%', height: '100%' }}
             >
+                {/* Heatmap Layer - Rendered underneath stations but above base map */}
+                <HeatmapLayer
+                    visible={showHeatmap}
+                    scenarioConfig={{
+                        // Pass current city config and implicit interventions (could be refined)
+                        description: "visualization_layer_request",
+                        city_config: lucknowData,
+                        interventions: {
+                            // Default to current simulation context if available, or just use base
+                            // For now, visualization assumes 1.0 multipliers unless passed explicitly
+                            // In a real app, we'd pass the full scenario context here
+                            demand_multiplier: 1.0
+                        }
+                    }}
+                />
+
                 {/* Rider paths (Redirections = Manhattan, History = Straight) */}
                 <Source id="rider-paths" type="geojson" data={riderPathData}>
                     {/* History lines (faint) */}
@@ -365,19 +412,20 @@ const CityMapView = ({
                 </Source>
 
                 {/* Ghost Stations (Recommendations) */}
-                {recommendations && recommendations.map((rec, idx) => (
-                    rec.minute <= currentMinute && (
+                {/* Ghost Stations (Recommendations) - Merging static and dynamic */}
+                {(suggestedStations.length > 0 ? suggestedStations : recommendations).map((rec, idx) => (
+                    (!rec.minute || (currentMinute && rec.minute <= currentMinute)) && (
                         <Marker
                             key={`rec-${idx}`}
-                            longitude={rec.lon}
-                            latitude={rec.lat}
+                            longitude={rec.longitude || rec.lon}
+                            latitude={rec.latitude || rec.lat}
                             anchor="center"
                         >
                             <div style={styles.ghostMarker}>
-                                <div style={styles.ghostIcon}>
-                                    <AlertCircle size={14} color="white" />
+                                <div style={{ ...styles.ghostIcon, backgroundColor: rec.score ? '#f59e0b' : '#ef4444' }}>
+                                    <Zap size={14} color="white" fill="white" />
                                 </div>
-                                <div style={styles.ghostPulse} />
+                                <div style={{ ...styles.ghostPulse, borderColor: rec.score ? '#f59e0b' : '#ef4444' }} />
                             </div>
                         </Marker>
                     )
@@ -581,6 +629,59 @@ const CityMapView = ({
                 )}
             </div>
 
+
+
+            {/* Map Controls Overlay */}
+            <div className="map-controls-overlay">
+                <div className="control-group">
+                    <label className="control-label">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Layers size={16} />
+                            <span>Demand Heatmap</span>
+                        </div>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                className="toggle-input"
+                                checked={showHeatmap}
+                                onChange={(e) => setShowHeatmap(e.target.checked)}
+                            />
+                            <span className="toggle-slider">
+                                <span className="toggle-knob"></span>
+                            </span>
+                        </label>
+                    </label>
+                </div>
+
+                <div className="control-group">
+                    <button
+                        onClick={handleOptimize}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            width: '100%',
+                            padding: '8px 0',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: optimizing ? '#f59e0b' : suggestedStations.length > 0 ? '#10b981' : '#1f2937',
+                            fontWeight: 600,
+                            fontSize: 14
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Zap size={16} fill={suggestedStations.length > 0 ? "currentColor" : "none"} />
+                            <span>{optimizing ? 'Analyzing...' : suggestedStations.length > 0 ? 'Clear Suggestions' : 'Optimize Network'}</span>
+                        </div>
+                    </button>
+                    {suggestedStations.length > 0 && (
+                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: -4, paddingLeft: 24 }}>
+                            {suggestedStations.length} stations proposed
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Legend */}
             <div style={styles.legend}>

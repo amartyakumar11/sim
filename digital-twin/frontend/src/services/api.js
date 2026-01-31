@@ -58,6 +58,22 @@ export const simulationAPI = {
     const response = await apiClient.get('/health')
     return response.data
   },
+
+  // Level 2: Analytics
+  getDemandHeatmap: async (scenarioConfig) => {
+    const response = await apiClient.post('/analytics/demand-heatmap', scenarioConfig)
+    return response.data
+  },
+
+  getCoverage: async (scenarioConfig) => {
+    const response = await apiClient.post('/analytics/coverage', scenarioConfig)
+    return response.data
+  },
+
+  getRecommendations: async (scenarioConfig) => {
+    const response = await apiClient.post('/analytics/recommendations', scenarioConfig)
+    return response.data
+  },
 }
 
 export default apiClient
