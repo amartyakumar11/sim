@@ -416,22 +416,13 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
         event_logger = EventLogger(temp_file.name)
 
         # Initialize components for SimulationEngine
-        from .inventory_manager import InventoryManager
+        from .battery_pool import BatteryPool
         from .kpi_tracker import KPITracker
         from .network_graph import NetworkGraph
         from .routing import RoutingEngine
         from .station import Station
         from .station_process import StationProcess
         import simpy
-
-        # Initialize inventory manager
-        initial_inventory = {s["station_id"]: s["inventory_current"] for s in stations_config}
-        inventory_manager = InventoryManager(
-            initial_inventory=initial_inventory,
-            refill_threshold=5,
-            refill_amount=10,
-            event_logger=event_logger
-        )
 
         # Initialize KPI tracker
         kpi_tracker = KPITracker(event_logger)
@@ -463,6 +454,14 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
         for station_config in stations_config:
             station_id = station_config["station_id"]
             
+            # Create BatteryPool for this station
+            initial_battery_count = station_config.get("inventory_current", 40)
+            battery_pool = BatteryPool(
+                station_id=station_id,
+                initial_battery_count=initial_battery_count,
+                event_logger=event_logger
+            )
+            
             # Create Station object
             station = Station(station_config, event_logger)
             network_graph.add_station(station)
@@ -473,7 +472,7 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
                 env=env,
                 swap_bays_count=station_config["swap_bays"],
                 chargers_count=station_config.get("chargers_total", station_config["swap_bays"]),
-                inventory_manager=inventory_manager,
+                battery_pool=battery_pool,
                 event_logger=event_logger,
                 swap_time_sec=station_config["swap_time_sec"],
                 queue_limit=station_config["queue_limit"],
@@ -495,7 +494,6 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
             env=env,
             demand_generator=demand_generator,
             routing_engine=routing_engine,
-            inventory_manager=inventory_manager,
             kpi_tracker=kpi_tracker,
             stations=stations,
             event_logger=event_logger,

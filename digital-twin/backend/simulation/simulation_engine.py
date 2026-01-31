@@ -9,7 +9,6 @@ from typing import Dict
 import simpy
 from .demand_generator import DemandGenerator
 from .routing import RoutingEngine
-from .inventory_manager import InventoryManager
 from .kpi_tracker import KPITracker
 from .station_process import StationProcess
 from .rider import Rider
@@ -28,7 +27,6 @@ class SimulationEngine:
         env: simpy.Environment,
         demand_generator: DemandGenerator,
         routing_engine: RoutingEngine,
-        inventory_manager: InventoryManager,
         kpi_tracker: KPITracker,
         stations: Dict[str, StationProcess],
         event_logger: EventLogger,
@@ -41,7 +39,6 @@ class SimulationEngine:
             env: SimPy environment (shared with all station processes)
             demand_generator: DemandGenerator instance
             routing_engine: RoutingEngine instance
-            inventory_manager: InventoryManager instance
             kpi_tracker: KPITracker instance
             stations: Dictionary mapping station_id to StationProcess
             event_logger: EventLogger instance
@@ -50,7 +47,6 @@ class SimulationEngine:
         self.env = env
         self.demand_generator = demand_generator
         self.routing_engine = routing_engine
-        self.inventory_manager = inventory_manager
         self.kpi_tracker = kpi_tracker
         self.stations = stations
         self.event_logger = event_logger

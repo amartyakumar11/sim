@@ -8,7 +8,8 @@ from typing import Optional
 from datetime import datetime, timedelta
 import simpy
 from .rider import Rider
-from .inventory_manager import InventoryManager
+from .battery_pool import BatteryPool
+from .rider_entity import RiderEntity
 from .event_logger import EventLogger
 
 
@@ -25,7 +26,7 @@ class StationProcess:
         env: simpy.Environment,
         swap_bays_count: int,
         chargers_count: int,
-        inventory_manager: InventoryManager,
+        battery_pool: BatteryPool,
         event_logger: EventLogger,
         swap_time_sec: int = 180,
         queue_limit: int = None,
@@ -39,7 +40,7 @@ class StationProcess:
             env: SimPy environment
             swap_bays_count: Number of swap bays available
             chargers_count: Number of chargers available
-            inventory_manager: InventoryManager instance
+            battery_pool: BatteryPool instance for battery management
             event_logger: EventLogger instance for logging events
             swap_time_sec: Time in seconds for a swap operation
             queue_limit: Maximum queue length (None = unlimited)
@@ -49,7 +50,7 @@ class StationProcess:
         self.env = env
         self.swap_bays = simpy.Resource(env, capacity=swap_bays_count)
         self.chargers = simpy.Resource(env, capacity=chargers_count)
-        self.inventory_manager = inventory_manager
+        self.battery_pool = battery_pool
         self.event_logger = event_logger
         self.swap_time_sec = swap_time_sec
         self.queue_limit = queue_limit if queue_limit is not None else (swap_bays_count * 3)
@@ -168,10 +169,11 @@ class StationProcess:
             )
             print(f"[DEBUG] process_swap: swap_start logged")
 
-            # Check inventory availability
-            if not self.inventory_manager.consume(self.station_id):
-                # Inventory stockout - cannot serve rider
-                print(f"[DEBUG] process_swap: inventory stockout!")
+            # Check battery availability via BatteryPool
+            available_battery = self.battery_pool.get_available_battery()
+            if not available_battery:
+                # Battery stockout - cannot serve rider
+                print(f"[DEBUG] process_swap: battery stockout!")
                 self.event_logger.log_event(
                     event_type="inventory_stockout",
                     station_id=self.station_id,
@@ -180,6 +182,20 @@ class StationProcess:
                 )
                 rider.mark_lost()
                 return
+            
+            # Get rider's old battery (if exists)
+            old_battery_id = getattr(rider, 'current_battery_id', None)
+            
+            # Assign new battery to rider
+            swap_time = self.simulation_start_time + timedelta(minutes=self.env.now) if self.simulation_start_time else datetime.utcnow()
+            new_battery = self.battery_pool.assign_battery_to_rider(rider.id, swap_time)
+            
+            # Update rider's battery tracking
+            rider.current_battery_id = new_battery.battery_id if new_battery else None
+            
+            # Return old battery to pool (if exists)
+            if old_battery_id:
+                self.battery_pool.return_battery(old_battery_id, rider.id, swap_time)
             
             print(f"[DEBUG] process_swap: inventory consumed, starting swap")
             # Perform swap (takes swap_time_sec seconds of simulated time)

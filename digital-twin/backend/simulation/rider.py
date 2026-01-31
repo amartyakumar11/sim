@@ -52,6 +52,9 @@ class Rider:
         self.status = RiderStatus.WAITING
         self.event_logger = event_logger
         self.arrival_offset_minutes = arrival_offset_minutes
+        
+        # Battery tracking (for Level-2)
+        self.current_battery_id: Optional[str] = None
 
     def wait(self, env: simpy.Environment):
         """
