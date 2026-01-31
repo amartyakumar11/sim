@@ -63,11 +63,32 @@ export const cumulativeZonePressure = (zonePressure, minute) => {
 };
 
 /**
+ * Get station state snapshot at a given minute from timeline.
+ * This is a DETERMINISTIC, PURE function with no side effects.
+ * 
+ * @param {Array} timeline - Array of state entries with minute field
+ * @param {number} minute - The target minute
+ * @returns {Object|null} The last state entry at or before the given minute
+ */
+const getStationStateAtMinute = (timeline, minute) => {
+    if (!timeline || !Array.isArray(timeline) || timeline.length === 0) {
+        return null;
+    }
+
+    let last = null;
+    for (const entry of timeline) {
+        if (entry.minute > minute) break;
+        last = entry;
+    }
+    return last;
+};
+
+/**
  * Determine station state at the given minute.
- * Attaches an 'activePressure' field indicating if the station has an active pressure window.
+ * Resolves queue, charging, inventory from timeline array.
  * @param {Object} stationTimelines - Map of station_id -> timeline data
  * @param {number} minute - The current minute
- * @returns {Object} Map of station_id -> timeline data with activePressure attached
+ * @returns {Object} Map of station_id -> resolved state with queue/charging/inventory
  */
 export const stationStateAtMinute = (stationTimelines, minute) => {
     if (!stationTimelines || minute === null || minute === undefined) {
@@ -76,15 +97,29 @@ export const stationStateAtMinute = (stationTimelines, minute) => {
 
     const result = {};
 
-    for (const [stationId, timeline] of Object.entries(stationTimelines)) {
-        // Find active pressure window at this minute
-        const activeWindow = (timeline.pressure_windows || []).find(
-            window => window.start_minute <= minute && window.end_minute >= minute
-        );
+    for (const [stationId, stationData] of Object.entries(stationTimelines)) {
+        // Resolve state from timeline array
+        const timelineState = getStationStateAtMinute(stationData.timeline, minute);
+
+        // Determine pressure state from inventory/queue
+        let activePressure = null;
+        if (timelineState) {
+            if (timelineState.inventory === 0) {
+                activePressure = { reason: 'battery_stockout' };
+            } else if (timelineState.queue > timelineState.charging) {
+                activePressure = { reason: 'swap_congestion' };
+            }
+        }
 
         result[stationId] = {
-            ...timeline,
-            activePressure: activeWindow || null
+            station_id: stationId,
+            zone: stationData.zone,
+            chargers: stationData.chargers || 0,
+            // Resolved state from timeline
+            queue: timelineState?.queue ?? 0,
+            charging: timelineState?.charging ?? 0,
+            inventory: timelineState?.inventory ?? 0,
+            activePressure
         };
     }
 

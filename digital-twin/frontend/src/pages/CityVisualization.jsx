@@ -39,38 +39,83 @@ const CityVisualization = () => {
     const [minMinute, setMinMinute] = useState(0);
     const [maxMinute, setMaxMinute] = useState(0);
 
-    // Load data on mount
+    // Load data on mount - try Lucknow simulation data first, fallback to sample
     useEffect(() => {
         const loadData = async () => {
             try {
-                const {
-                    getSampleCityGraph,
-                    getSampleZonePressure,
-                    getSampleStationTimelines,
-                    getSampleRiderTraces
-                } = await import('../services/sampleData.js');
+                // Try loading Lucknow simulation data
+                const [stationTimelineRes, zonePressureRes, riderTracesRes] = await Promise.all([
+                    fetch('/station_timelines_lucknow.json'),
+                    fetch('/zone_pressure_lucknow.json'),
+                    fetch('/rider_traces_lucknow.json')
+                ]);
 
-                const cityGraphData = getSampleCityGraph();
-                const zonePressureData = getSampleZonePressure();
-                const stationTimelineData = getSampleStationTimelines();
-                const riderTraceData = getSampleRiderTraces();
+                if (stationTimelineRes.ok && zonePressureRes.ok && riderTracesRes.ok) {
+                    // Use Lucknow simulation data
+                    const stationTimelineData = await stationTimelineRes.json();
+                    const zonePressureData = await zonePressureRes.json();
+                    const riderTraceData = await riderTracesRes.json();
 
-                setCityGraph(cityGraphData);
-                setZonePressure(zonePressureData);
-                setStationTimelines(stationTimelineData);
-                setRiderTraces(riderTraceData);
+                    // City graph is loaded separately by CityMapView
+                    setCityGraph(null);
+                    setZonePressure(zonePressureData);
+                    setStationTimelines(stationTimelineData);
+                    setRiderTraces(riderTraceData);
 
-                // Initialize playback range from zone pressure data
-                const { minMinute: min, maxMinute: max } = getMinuteRange(zonePressureData);
-                setMinMinute(min);
-                setMaxMinute(max);
-                setCurrentMinute(min); // Start at earliest minute
+                    // Calculate minute range from station timeline data
+                    const allMinutes = [];
+                    Object.values(stationTimelineData).forEach(station => {
+                        if (station.timeline) {
+                            station.timeline.forEach(entry => allMinutes.push(entry.minute));
+                        }
+                    });
 
-                setLoading(false);
+                    if (allMinutes.length > 0) {
+                        const min = Math.min(...allMinutes);
+                        const max = Math.max(...allMinutes);
+                        setMinMinute(min);
+                        setMaxMinute(max);
+                        setCurrentMinute(min);
+                    }
+
+                    console.log('[CityVisualization] Loaded Lucknow simulation data');
+                    setLoading(false);
+                } else {
+                    throw new Error('Lucknow data not available, falling back to sample data');
+                }
             } catch (err) {
-                console.error('Failed to load visualization data:', err);
-                setError(err.message);
-                setLoading(false);
+                console.warn('Lucknow data not available, using sample data:', err.message);
+
+                // Fallback to sample data
+                try {
+                    const {
+                        getSampleCityGraph,
+                        getSampleZonePressure,
+                        getSampleStationTimelines,
+                        getSampleRiderTraces
+                    } = await import('../services/sampleData.js');
+
+                    const cityGraphData = getSampleCityGraph();
+                    const zonePressureData = getSampleZonePressure();
+                    const stationTimelineData = getSampleStationTimelines();
+                    const riderTraceData = getSampleRiderTraces();
+
+                    setCityGraph(cityGraphData);
+                    setZonePressure(zonePressureData);
+                    setStationTimelines(stationTimelineData);
+                    setRiderTraces(riderTraceData);
+
+                    const { minMinute: min, maxMinute: max } = getMinuteRange(zonePressureData);
+                    setMinMinute(min);
+                    setMaxMinute(max);
+                    setCurrentMinute(min);
+
+                    setLoading(false);
+                } catch (fallbackErr) {
+                    console.error('Failed to load visualization data:', fallbackErr);
+                    setError(fallbackErr.message);
+                    setLoading(false);
+                }
             }
         };
 

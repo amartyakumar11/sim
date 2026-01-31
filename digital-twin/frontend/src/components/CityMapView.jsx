@@ -80,13 +80,36 @@ const CityMapView = ({
         return map;
     }, [stations]);
 
-    // Get station state from timelines
+    // Get station state from timelines - includes queue, charging, inventory
     const getStationState = (stationId) => {
-        return stationTimelines[stationId] || {
-            swaps_total: 0,
-            lost_swaps: 0,
-            activePressure: null
-        };
+        const state = stationTimelines[stationId];
+        if (!state) {
+            return {
+                queue: 0,
+                charging: 0,
+                inventory: 10,
+                chargers: 4,
+                activePressure: null
+            };
+        }
+        return state;
+    };
+
+    // Determine station color based on state (STEP 4)
+    // 🟢 Green → queue === 0
+    // 🟡 Yellow → queue > 0 AND inventory > 0
+    // 🔴 Red → inventory === 0 OR queue > chargers
+    const getStationColor = (state) => {
+        const isStockout = state.inventory === 0;
+        const isCongested = state.queue > state.chargers;
+
+        if (isStockout || isCongested) {
+            return '#ef4444'; // Red
+        }
+        if (state.queue > 0 && state.inventory > 0) {
+            return '#f59e0b'; // Yellow
+        }
+        return '#22c55e'; // Green
     };
 
     // Build rider path GeoJSON for completed swaps
@@ -179,7 +202,8 @@ const CityMapView = ({
                 mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
                 style={{ width: '100%', height: '100%' }}
             >
-                {/* Rider paths as lines */}
+                {/* Rider paths disabled - straight lines to random stations
+                   TODO: Implement real road routing with OSRM/GraphHopper
                 <Source id="rider-paths" type="geojson" data={riderPathData}>
                     <Layer
                         id="rider-paths-line"
@@ -191,19 +215,21 @@ const CityMapView = ({
                         }}
                     />
                 </Source>
+                */}
 
-                {/* STEP 3: Station markers from Lucknow data */}
+                {/* STEP 3 & 5: Station markers with congestion UI */}
                 {stations.map((station) => {
                     const state = getStationState(station.station_id);
-                    const isUnderPressure = state.activePressure !== null;
-                    const hasLostSwaps = state.lost_swaps > 0;
+                    const stationColor = getStationColor(state);
+                    const isStockout = state.inventory === 0;
+                    const isCongested = state.queue > state.chargers;
 
                     return (
                         <Marker
                             key={station.station_id}
                             longitude={station.longitude}
                             latitude={station.latitude}
-                            anchor="bottom"
+                            anchor="center"
                         >
                             <div
                                 style={styles.stationMarker}
@@ -216,14 +242,26 @@ const CityMapView = ({
                                 })}
                                 onMouseLeave={() => setHoveredStation(null)}
                             >
+                                {/* Pulsing ring for stockout */}
+                                {isStockout && (
+                                    <div style={styles.stockoutPulse} />
+                                )}
+
+                                {/* Station dot */}
                                 <div style={{
                                     ...styles.stationIcon,
-                                    backgroundColor: isUnderPressure ? '#ef4444' :
-                                        hasLostSwaps ? '#f59e0b' : '#22c55e',
-                                    transform: isUnderPressure ? 'scale(1.2)' : 'scale(1)'
+                                    backgroundColor: stationColor,
+                                    transform: (isStockout || isCongested) ? 'scale(1.2)' : 'scale(1)'
                                 }}>
                                     <BatteryCharging size={12} color="white" />
                                 </div>
+
+                                {/* Queue badge - only show when queue > 0 */}
+                                {state.queue > 0 && (
+                                    <div style={styles.queueBadge}>
+                                        Q:{state.queue}
+                                    </div>
+                                )}
                             </div>
                         </Marker>
                     );
@@ -289,19 +327,28 @@ const CityMapView = ({
                         Swap Bays: {hoveredStation.swap_bays}
                     </div>
                     <div style={styles.tooltipRow}>
-                        Chargers: {hoveredStation.chargers_total}
+                        Queue: <span style={{
+                            color: hoveredStation.queue > 0 ? '#f59e0b' : '#22c55e',
+                            fontWeight: 'bold'
+                        }}>
+                            {hoveredStation.queue}
+                        </span>
                     </div>
                     <div style={styles.tooltipRow}>
-                        Total Swaps: {hoveredStation.swaps_total}
+                        Charging: {hoveredStation.charging}/{hoveredStation.chargers}
                     </div>
                     <div style={styles.tooltipRow}>
-                        Lost Swaps: <span style={{ color: hoveredStation.lost_swaps > 0 ? '#ef4444' : '#22c55e' }}>
-                            {hoveredStation.lost_swaps}
+                        Inventory: <span style={{
+                            color: hoveredStation.inventory === 0 ? '#ef4444' :
+                                hoveredStation.inventory < 3 ? '#f59e0b' : '#22c55e',
+                            fontWeight: 'bold'
+                        }}>
+                            {hoveredStation.inventory}
                         </span>
                     </div>
                     {hoveredStation.activePressure && (
-                        <div style={{ ...styles.tooltipRow, color: '#ef4444' }}>
-                            ⚠ Under Pressure: {hoveredStation.activePressure.reason}
+                        <div style={{ ...styles.tooltipRow, color: '#ef4444', marginTop: 8 }}>
+                            ⚠ {hoveredStation.activePressure.reason.replace('_', ' ')}
                         </div>
                     )}
                 </div>
@@ -332,6 +379,7 @@ const CityMapView = ({
 
 const styles = {
     stationMarker: {
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -346,7 +394,43 @@ const styles = {
         justifyContent: 'center',
         boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
         border: '2px solid white',
-        transition: 'transform 0.2s'
+        transition: 'transform 0.2s, background-color 0.3s',
+        zIndex: 2
+    },
+    stockoutPulse: {
+        position: 'absolute',
+        width: 36,
+        height: 36,
+        borderRadius: '50%',
+        border: '3px solid #ef4444',
+        animation: 'stockoutPulse 1.5s infinite',
+        opacity: 0.8,
+        zIndex: 1
+    },
+    queueBadge: {
+        position: 'absolute',
+        top: -8,
+        right: -12,
+        backgroundColor: '#f59e0b',
+        color: 'white',
+        fontSize: 9,
+        fontWeight: 'bold',
+        padding: '2px 4px',
+        borderRadius: 4,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        zIndex: 3
+    },
+    chargingBadge: {
+        position: 'absolute',
+        bottom: -10,
+        backgroundColor: 'rgba(55, 65, 81, 0.9)',
+        color: 'white',
+        fontSize: 8,
+        fontWeight: 'bold',
+        padding: '1px 3px',
+        borderRadius: 3,
+        whiteSpace: 'nowrap',
+        zIndex: 3
     },
     riderMarker: {
         position: 'relative',
