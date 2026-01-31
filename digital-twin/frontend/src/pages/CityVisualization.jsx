@@ -244,8 +244,7 @@ const CityVisualization = () => {
                                 value={currentMinute ?? minMinute}
                                 onChange={handleSliderChange}
                                 style={{
-                                    ...styles.sliderInput,
-                                    marginTop: -3 // Vertically align thumb with 6px height track
+                                    ...styles.sliderInput
                                 }}
                                 aria-label="Time slider"
                             />
@@ -369,7 +368,9 @@ const styles = {
     sliderContainer: {
         flex: 1,
         position: 'relative',
-        height: 6
+        height: 6,
+        display: 'flex',
+        alignItems: 'center'
     },
     sliderTrack: {
         position: 'absolute',

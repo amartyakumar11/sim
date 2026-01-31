@@ -54,3 +54,17 @@ body {
   min-height: calc(100vh - 64px - 70px);
   background: var(--color-bg-base);
 }
+
+/* Station Popup - Ensure it appears above markers */
+.maplibregl-popup {
+  z-index: 1000 !important;
+}
+
+.maplibregl-popup-content {
+  z-index: 1000 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+.maplibregl-popup-tip {
+  z-index: 999 !important;
+}

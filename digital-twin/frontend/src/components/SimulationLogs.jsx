@@ -158,7 +158,7 @@ const styles = {
     container: {
         position: 'absolute',
         bottom: 32,
-        left: 32,
+        left: 16,
         width: 320,
         maxHeight: 300,
 

@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
+import Map, { Marker, Source, Layer, Popup } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { BatteryCharging, User, AlertCircle } from 'lucide-react';
 
@@ -61,6 +61,16 @@ const CityMapView = ({
             });
     }, []);
 
+    // Debug: Log stationTimelines structure
+    useEffect(() => {
+        if (Object.keys(stationTimelines).length > 0) {
+            const firstStation = Object.keys(stationTimelines)[0];
+            console.log('[CityMapView] stationTimelines sample:', firstStation, stationTimelines[firstStation]);
+            console.log('[CityMapView] currentMinute:', currentMinute);
+            console.log('[CityMapView] Total stations with timelines:', Object.keys(stationTimelines).length);
+        }
+    }, [stationTimelines, currentMinute]);
+
     // Get stations from loaded data
     const stations = useMemo(() => {
         if (!lucknowData || !lucknowData.stations) return [];
@@ -84,8 +94,9 @@ const CityMapView = ({
 
     // Get station state from timelines - includes queue, charging, inventory
     const getStationState = (stationId) => {
-        const state = stationTimelines[stationId];
-        if (!state) {
+        const stationData = stationTimelines[stationId];
+
+        if (!stationData) {
             return {
                 queue: 0,
                 charging: 0,
@@ -94,7 +105,15 @@ const CityMapView = ({
                 activePressure: null
             };
         }
-        return state;
+
+        // stationData IS the current state (flat structure from API)
+        return {
+            queue: stationData.queue || 0,
+            charging: stationData.charging || 0,
+            inventory: stationData.inventory !== undefined ? stationData.inventory : 10,
+            chargers: stationData.chargers || 4,
+            activePressure: null
+        };
     };
 
     // Determine station color based on state (STEP 4)
@@ -371,22 +390,53 @@ const CityMapView = ({
                     const isStockout = state.inventory === 0;
                     const isCongested = state.queue > state.chargers;
 
+                    // Debug first 3 stations
+                    if (station.station_id === 'LKO_ST_001' || station.station_id === 'LKO_ST_002' || station.station_id === 'LKO_ST_003') {
+                        console.log(`[${station.station_id}] State:`, state, 'Color:', stationColor, 'Stockout:', isStockout);
+                    }
+
                     return (
                         <Marker
                             key={station.station_id}
                             longitude={station.longitude}
                             latitude={station.latitude}
                             anchor="center"
+                            style={{ zIndex: 100 }}
                         >
                             <div
                                 style={styles.stationMarker}
-                                onMouseEnter={() => setHoveredStation({
-                                    id: station.station_id,
-                                    zone_id: station.zone_id,
-                                    swap_bays: station.swap_bays,
-                                    chargers_total: station.chargers_total,
-                                    ...state
-                                })}
+                                onMouseEnter={() => {
+                                    console.log('Hover triggered for station:', station.station_id);
+                                    console.log('Station timelines:', stationTimelines);
+                                    console.log('State:', state);
+
+                                    // Get station logs/events from timeline for tooltip
+                                    const timeline = stationTimelines[station.station_id];
+                                    const stEvents = timeline?.states
+                                        ?.filter(e => e.minute <= currentMinute && e.minute > currentMinute - 60) // Last 60 mins
+                                        ?.slice(-5) // Last 5 events
+                                        ?.reverse() || [];
+
+                                    console.log('Recent events:', stEvents);
+
+                                    setHoveredStation({
+                                        id: station.station_id,
+                                        zone_id: station.zone_id,
+                                        swap_bays: station.swap_bays,
+                                        chargers_total: station.chargers_total,
+                                        recentEvents: stEvents,
+                                        ...state
+                                    });
+
+                                    console.log('Hovered station set:', {
+                                        id: station.station_id,
+                                        zone_id: station.zone_id,
+                                        swap_bays: station.swap_bays,
+                                        chargers_total: station.chargers_total,
+                                        recentEvents: stEvents,
+                                        ...state
+                                    });
+                                }}
                                 onMouseLeave={() => setHoveredStation(null)}
                             >
                                 {/* Pulsing ring for stockout */}
@@ -429,6 +479,75 @@ const CityMapView = ({
                         </div>
                     </Marker>
                 )}
+
+                {/* Station Status Popup (appears on map near hovered station) */}
+                {hoveredStation && (
+                    <Popup
+                        longitude={stations.find(s => s.station_id === hoveredStation.id)?.longitude || 0}
+                        latitude={stations.find(s => s.station_id === hoveredStation.id)?.latitude || 0}
+                        anchor="left"
+                        offset={15}
+                        onClose={() => setHoveredStation(null)}
+                        closeButton={false}
+                        closeOnClick={false}
+                        className="station-popup"
+                    >
+                        <div style={{ padding: 8, minWidth: 180 }}>
+                            <div style={styles.tooltipTitle}>
+                                <BatteryCharging size={14} /> {hoveredStation.id}
+                            </div>
+                            <div style={styles.tooltipRow}>
+                                Zone: {hoveredStation.zone_id}
+                            </div>
+                            <div style={styles.tooltipRow}>
+                                Swap Bays: {hoveredStation.swap_bays}
+                            </div>
+                            <div style={styles.tooltipRow}>
+                                Queue: <span style={{
+                                    color: hoveredStation.queue > 0 ? '#f59e0b' : '#22c55e',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {hoveredStation.queue}
+                                </span>
+                            </div>
+                            <div style={styles.tooltipRow}>
+                                Charging: {hoveredStation.charging}/{hoveredStation.chargers}
+                            </div>
+                            <div style={styles.tooltipRow}>
+                                Inventory: <span style={{
+                                    color: hoveredStation.inventory < 3 ? '#ef4444' : '#22c55e',
+                                    fontWeight: 'bold'
+                                }}>
+                                    {hoveredStation.inventory}
+                                </span>
+                            </div>
+
+                            {/* Recent Events Log */}
+                            {hoveredStation.recentEvents && hoveredStation.recentEvents.length > 0 && (
+                                <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8, marginTop: 8 }}>
+                                    <div style={{ fontSize: 10, fontWeight: 'bold', color: '#6b7280', marginBottom: 4 }}>RECENT ACTIVITY</div>
+                                    {hoveredStation.recentEvents.map((evt, i) => (
+                                        <div key={i} style={{ fontSize: 10, display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                                            <span style={{ color: '#9ca3af' }}>{Math.floor(evt.minute / 60)}:{String(evt.minute % 60).padStart(2, '0')}</span>
+                                            <span style={{
+                                                color: evt.inventory === 0 ? '#ef4444' : evt.event === 'redirection' ? '#f59e0b' : '#374151',
+                                                fontWeight: (evt.inventory === 0 || evt.event === 'redirection') ? 'bold' : 'normal'
+                                            }}>
+                                                {evt.inventory === 0 ? 'STOCKOUT' : evt.event === 'redirection' ? 'Redirect' : `Q: ${evt.queue} | Inv: ${evt.inventory}`}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {hoveredStation.activePressure && (
+                                <div style={{ ...styles.tooltipRow, color: '#ef4444', marginTop: 8 }}>
+                                    ⚠ {hoveredStation.activePressure.reason.replace('_', ' ')}
+                                </div>
+                            )}
+                        </div>
+                    </Popup>
+                )}
             </Map>
 
             {/* Network Status Overlay */}
@@ -462,45 +581,6 @@ const CityMapView = ({
                 )}
             </div>
 
-            {/* STEP 4: Station Tooltip */}
-            {hoveredStation && (
-                <div style={styles.tooltip}>
-                    <div style={styles.tooltipTitle}>
-                        <BatteryCharging size={14} /> {hoveredStation.id}
-                    </div>
-                    <div style={styles.tooltipRow}>
-                        Zone: {hoveredStation.zone_id}
-                    </div>
-                    <div style={styles.tooltipRow}>
-                        Swap Bays: {hoveredStation.swap_bays}
-                    </div>
-                    <div style={styles.tooltipRow}>
-                        Queue: <span style={{
-                            color: hoveredStation.queue > 0 ? '#f59e0b' : '#22c55e',
-                            fontWeight: 'bold'
-                        }}>
-                            {hoveredStation.queue}
-                        </span>
-                    </div>
-                    <div style={styles.tooltipRow}>
-                        Charging: {hoveredStation.charging}/{hoveredStation.chargers}
-                    </div>
-                    <div style={styles.tooltipRow}>
-                        Inventory: <span style={{
-                            color: hoveredStation.inventory === 0 ? '#ef4444' :
-                                hoveredStation.inventory < 3 ? '#f59e0b' : '#22c55e',
-                            fontWeight: 'bold'
-                        }}>
-                            {hoveredStation.inventory}
-                        </span>
-                    </div>
-                    {hoveredStation.activePressure && (
-                        <div style={{ ...styles.tooltipRow, color: '#ef4444', marginTop: 8 }}>
-                            ⚠ {hoveredStation.activePressure.reason.replace('_', ' ')}
-                        </div>
-                    )}
-                </div>
-            )}
 
             {/* Legend */}
             <div style={styles.legend}>
@@ -535,7 +615,13 @@ const styles = {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        cursor: 'pointer'
+        justifyContent: 'center',
+        cursor: 'pointer',
+        pointerEvents: 'auto',
+        touchAction: 'none',
+        width: 48,
+        height: 48,
+        zIndex: 100
     },
     stationIcon: {
         width: 24,
