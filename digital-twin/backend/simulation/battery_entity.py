@@ -51,6 +51,9 @@ class BatteryEntity:
         self.last_swap_time: Optional[datetime] = None
         self.last_charge_time: Optional[datetime] = None
         
+        # Battery range tracking (for Level-2 lifecycle)
+        self.remaining_km: float = 0.0  # Set externally based on usage
+        
     def assign_to_rider(self, rider_id: str, swap_time: datetime):
         """
         Assign battery to a rider (during swap).

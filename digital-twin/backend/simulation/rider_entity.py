@@ -53,6 +53,17 @@ class RiderEntity:
         # Current state
         self.current_station_id: Optional[str] = None
         
+        # Zone tracking (for Level-2 lifecycle)
+        self.current_zone_id: Optional[str] = None
+        self.home_zone_id: Optional[str] = None
+        self.time_in_zone: int = 0  # Minutes in current zone
+        
+        # Battery reference (for Level-2 lifecycle)
+        self.current_battery = None  # Will hold BatteryEntity reference
+        
+        # Distance tracking
+        self.total_distance_km: float = 0.0
+        
     def arrive_at_station(self, station_id: str, arrival_time: datetime):
         """
         Mark rider as arriving at a station.
