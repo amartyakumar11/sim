@@ -7,66 +7,33 @@
  * 3. Hero rider journey
  * 
  * Read-only visualization - NO simulation, NO backend calls.
+ * Accepts pre-filtered data from parent component.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ZoneLayer from './ZoneLayer';
 import StationLayer from './StationLayer';
 import RiderPathLayer from './RiderPathLayer';
 
-const CityCanvas = () => {
-  const [cityGraph, setCityGraph] = useState(null);
-  const [zonePressure, setZonePressure] = useState([]);
-  const [stationTimelines, setStationTimelines] = useState({});
-  const [riderTraces, setRiderTraces] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
+/**
+ * @param {Object} props
+ * @param {Object} props.cityGraph - City graph with zones and stations
+ * @param {Object} props.zonePressure - Map of zone_id -> pressure entry (cumulative)
+ * @param {Object} props.stationTimelines - Map of station_id -> timeline with activePressure
+ * @param {Object} props.riderTraces - Map of rider_id -> trace with playback state
+ * @param {number|null} props.currentMinute - Current playback minute
+ */
+const CityCanvas = ({
+  cityGraph,
+  zonePressure = {},
+  stationTimelines = {},
+  riderTraces = {},
+  currentMinute = null
+}) => {
   // Layer toggles
   const [showZones, setShowZones] = useState(true);
   const [showStations, setShowStations] = useState(true);
   const [showRider, setShowRider] = useState(true);
-
-  // Load JSON artifacts on mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Load sample data for testing
-        // In production, replace with API calls to load actual observability artifacts
-        const { getSampleCityGraph, getSampleZonePressure, getSampleStationTimelines, getSampleRiderTraces } =
-          await import('../services/sampleData.js');
-
-        setCityGraph(getSampleCityGraph());
-        setZonePressure(getSampleZonePressure());
-        setStationTimelines(getSampleStationTimelines());
-        setRiderTraces(getSampleRiderTraces());
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Failed to load visualization data:', err);
-        setError(err.message);
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  if (loading) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.loading}>Loading city visualization...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.error}>Error: {error}</div>
-      </div>
-    );
-  }
 
   if (!cityGraph) {
     return (
@@ -75,6 +42,9 @@ const CityCanvas = () => {
       </div>
     );
   }
+
+  // Convert cumulative zone pressure object to array format expected by ZoneLayer
+  const zonePressureArray = Object.values(zonePressure);
 
   return (
     <div style={styles.container}>
@@ -120,7 +90,7 @@ const CityCanvas = () => {
         {showZones && (
           <ZoneLayer
             cityGraph={cityGraph}
-            zonePressure={zonePressure}
+            zonePressure={zonePressureArray}
           />
         )}
 
@@ -129,6 +99,7 @@ const CityCanvas = () => {
           <StationLayer
             cityGraph={cityGraph}
             stationTimelines={stationTimelines}
+            currentMinute={currentMinute}
           />
         )}
 
@@ -137,6 +108,7 @@ const CityCanvas = () => {
           <RiderPathLayer
             cityGraph={cityGraph}
             riderTraces={riderTraces}
+            currentMinute={currentMinute}
           />
         )}
       </svg>
@@ -160,6 +132,10 @@ const CityCanvas = () => {
           <span>Station</span>
         </div>
         <div style={styles.legendItem}>
+          <div style={{ ...styles.legendColor, backgroundColor: '#FF5722', borderRadius: '50%' }}></div>
+          <span>Station (Under Pressure)</span>
+        </div>
+        <div style={styles.legendItem}>
           <div style={{ ...styles.legendColor, backgroundColor: 'transparent', border: '2px solid #9C27B0' }}></div>
           <span>Rider Journey</span>
         </div>
@@ -173,7 +149,10 @@ const styles = {
     padding: '20px',
     fontFamily: 'Arial, sans-serif',
     maxWidth: '900px',
-    margin: '0 auto'
+    margin: '0 auto',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   },
   header: {
     display: 'flex',
@@ -227,12 +206,6 @@ const styles = {
     width: '20px',
     height: '20px',
     border: '1px solid #999'
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '50px',
-    fontSize: '18px',
-    color: '#666'
   },
   error: {
     textAlign: 'center',

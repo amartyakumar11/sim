@@ -8,7 +8,7 @@
 
 import React, { useState } from 'react';
 
-const StationLayer = ({ cityGraph, stationTimelines }) => {
+const StationLayer = ({ cityGraph, stationTimelines, currentMinute }) => {
     const [hoveredStation, setHoveredStation] = useState(null);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
@@ -48,7 +48,8 @@ const StationLayer = ({ cityGraph, stationTimelines }) => {
 
             const timeline = stationTimelines[stationId] || {
                 swaps_total: 0,
-                lost_swaps: 0
+                lost_swaps: 0,
+                activePressure: null
             };
 
             stationPositions.push({
@@ -57,7 +58,8 @@ const StationLayer = ({ cityGraph, stationTimelines }) => {
                 y: stationY,
                 zone: zoneId,
                 swaps: timeline.swaps_total,
-                lostSwaps: timeline.lost_swaps
+                lostSwaps: timeline.lost_swaps,
+                activePressure: timeline.activePressure
             });
         });
     });
@@ -71,6 +73,17 @@ const StationLayer = ({ cityGraph, stationTimelines }) => {
         setHoveredStation(null);
     };
 
+    // Determine station fill color based on state
+    const getStationFill = (station) => {
+        if (station.activePressure) {
+            return '#FF5722'; // Orange for active pressure
+        }
+        if (station.lostSwaps > 0) {
+            return '#f44336'; // Red for lost swaps
+        }
+        return '#2196F3'; // Blue for normal
+    };
+
     return (
         <g className="station-layer">
             {stationPositions.map(station => (
@@ -79,13 +92,16 @@ const StationLayer = ({ cityGraph, stationTimelines }) => {
                     <circle
                         cx={station.x}
                         cy={station.y}
-                        r={6}
-                        fill={station.lostSwaps > 0 ? '#f44336' : '#2196F3'}
+                        r={station.activePressure ? 8 : 6}
+                        fill={getStationFill(station)}
                         stroke="white"
                         strokeWidth="2"
                         onMouseEnter={(e) => handleStationHover(station, e)}
                         onMouseLeave={handleStationLeave}
-                        style={{ cursor: 'pointer' }}
+                        style={{
+                            cursor: 'pointer',
+                            transition: 'r 0.2s, fill 0.2s'
+                        }}
                     />
 
                     {/* Station ID label (small) */}
@@ -108,7 +124,7 @@ const StationLayer = ({ cityGraph, stationTimelines }) => {
                     x={tooltipPos.x - 400}
                     y={tooltipPos.y - 500}
                     width="220"
-                    height="120"
+                    height="150"
                 >
                     <div style={styles.tooltip}>
                         <div style={styles.tooltipTitle}>{hoveredStation.id}</div>
@@ -124,6 +140,14 @@ const StationLayer = ({ cityGraph, stationTimelines }) => {
                                 {hoveredStation.lostSwaps}
                             </span>
                         </div>
+                        {hoveredStation.activePressure && (
+                            <div style={styles.tooltipRow}>
+                                <strong>Pressure:</strong>{' '}
+                                <span style={{ color: '#FF5722' }}>
+                                    {hoveredStation.activePressure.reason}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </foreignObject>
             )}

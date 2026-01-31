@@ -1,17 +1,18 @@
 /**
- * RiderPathLayer: Renders hero rider journey.
+ * RiderPathLayer: Renders hero rider journey with playback support.
  * 
  * - Selects ONE rider deterministically (most swaps, longest journey)
- * - Draws polyline through swap stations
+ * - Draws polyline through swap stations UP TO current minute
  * - Marks swap points with numbered labels
- * - Tooltip shows rider details
+ * - Highlights latest completed swap station
+ * - Tooltip shows rider details with playback state
  * 
- * NO animation, NO time slider - static visualization only.
+ * NO animation, NO physics, NO interpolation - discrete minute steps only.
  */
 
 import React, { useState } from 'react';
 
-const RiderPathLayer = ({ cityGraph, riderTraces }) => {
+const RiderPathLayer = ({ cityGraph, riderTraces, currentMinute }) => {
     const [hoveredRider, setHoveredRider] = useState(null);
 
     if (!cityGraph || !cityGraph.zones || !riderTraces || Object.keys(riderTraces).length === 0) {
@@ -24,21 +25,21 @@ const RiderPathLayer = ({ cityGraph, riderTraces }) => {
 
         if (riders.length === 0) return null;
 
-        // Sort by: total_swaps (desc), then swap_stations.length (desc), then rider_id (asc)
+        // Sort by: completedSwaps (desc), then total_swaps (desc), then rider_id (asc)
         riders.sort((a, b) => {
             const [idA, traceA] = a;
             const [idB, traceB] = b;
 
-            // Primary: total swaps
-            if (traceB.total_swaps !== traceA.total_swaps) {
-                return traceB.total_swaps - traceA.total_swaps;
+            // Primary: completed swaps (for playback visibility)
+            const completedA = traceA.completedSwaps || traceA.total_swaps || 0;
+            const completedB = traceB.completedSwaps || traceB.total_swaps || 0;
+            if (completedB !== completedA) {
+                return completedB - completedA;
             }
 
-            // Secondary: journey length (number of stations visited)
-            const lenA = (traceA.swap_stations || []).length;
-            const lenB = (traceB.swap_stations || []).length;
-            if (lenB !== lenA) {
-                return lenB - lenA;
+            // Secondary: total swaps
+            if (traceB.total_swaps !== traceA.total_swaps) {
+                return traceB.total_swaps - traceA.total_swaps;
             }
 
             // Tertiary: rider_id (deterministic tiebreak)
@@ -53,9 +54,33 @@ const RiderPathLayer = ({ cityGraph, riderTraces }) => {
     if (!heroRider) return null;
 
     const [riderId, riderTrace] = heroRider;
-    const swapStations = riderTrace.swap_stations || [];
 
-    if (swapStations.length === 0) return null;
+    // Use completedStations from time-filtered data, or fall back to all swaps
+    const completedStations = riderTrace.completedStations || riderTrace.swap_stations || [];
+    const completedSwaps = riderTrace.completedSwaps ?? riderTrace.total_swaps ?? 0;
+    const isActiveAtMinute = riderTrace.isActiveAtMinute !== undefined
+        ? riderTrace.isActiveAtMinute
+        : riderTrace.end_state === 'active';
+
+    if (completedStations.length === 0) {
+        // Rider hasn't made any swaps yet at this minute - show spawn indicator only
+        return (
+            <g className="rider-path-layer">
+                <foreignObject x={10} y={500} width="250" height="90">
+                    <div style={styles.heroInfo}>
+                        <div style={styles.heroTitle}>🎯 Hero Rider: {riderId}</div>
+                        <div style={styles.heroRow}>
+                            <strong>Status:</strong>{' '}
+                            <span style={{ color: '#FF9800' }}>Waiting for first swap...</span>
+                        </div>
+                        <div style={styles.heroRow}>
+                            <strong>Spawn Zone:</strong> {riderTrace.spawn_zone}
+                        </div>
+                    </div>
+                </foreignObject>
+            </g>
+        );
+    }
 
     // Build station position map
     const zones = cityGraph.zones;
@@ -90,8 +115,8 @@ const RiderPathLayer = ({ cityGraph, riderTraces }) => {
         });
     });
 
-    // Build path points
-    const pathPoints = swapStations
+    // Build path points for COMPLETED swaps only
+    const pathPoints = completedStations
         .map(stationId => stationPositions[stationId])
         .filter(pos => pos !== undefined);
 
@@ -101,6 +126,9 @@ const RiderPathLayer = ({ cityGraph, riderTraces }) => {
     const pathData = pathPoints
         .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
         .join(' ');
+
+    // Determine last completed station (for highlighting)
+    const lastIndex = pathPoints.length - 1;
 
     return (
         <g className="rider-path-layer">
@@ -117,55 +145,82 @@ const RiderPathLayer = ({ cityGraph, riderTraces }) => {
             />
 
             {/* Swap point markers */}
-            {pathPoints.map((point, index) => (
-                <g key={index}>
-                    {/* Swap point circle */}
-                    <circle
-                        cx={point.x}
-                        cy={point.y}
-                        r={10}
-                        fill="#9C27B0"
-                        stroke="white"
-                        strokeWidth="2"
-                    />
+            {pathPoints.map((point, index) => {
+                const isLatest = index === lastIndex;
 
-                    {/* Swap order label */}
-                    <text
-                        x={point.x}
-                        y={point.y + 4}
-                        textAnchor="middle"
-                        fontSize="12"
-                        fontWeight="bold"
-                        fill="white"
-                    >
-                        {index + 1}
-                    </text>
-                </g>
-            ))}
+                return (
+                    <g key={index}>
+                        {/* Highlight ring for latest swap */}
+                        {isLatest && (
+                            <circle
+                                cx={point.x}
+                                cy={point.y}
+                                r={14}
+                                fill="none"
+                                stroke="#E91E63"
+                                strokeWidth="2"
+                                style={{
+                                    animation: 'none' // Discrete, no pulse
+                                }}
+                            />
+                        )}
+
+                        {/* Swap point circle */}
+                        <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={isLatest ? 12 : 10}
+                            fill={isLatest ? '#E91E63' : '#9C27B0'}
+                            stroke="white"
+                            strokeWidth="2"
+                        />
+
+                        {/* Swap order label */}
+                        <text
+                            x={point.x}
+                            y={point.y + 4}
+                            textAnchor="middle"
+                            fontSize={isLatest ? '14' : '12'}
+                            fontWeight="bold"
+                            fill="white"
+                        >
+                            {index + 1}
+                        </text>
+                    </g>
+                );
+            })}
 
             {/* Hero rider info tooltip (always visible) */}
             <foreignObject
                 x={10}
                 y={500}
-                width="250"
-                height="90"
+                width="280"
+                height="110"
             >
                 <div style={styles.heroInfo}>
                     <div style={styles.heroTitle}>🎯 Hero Rider: {riderId}</div>
                     <div style={styles.heroRow}>
-                        <strong>Total Swaps:</strong> {riderTrace.total_swaps}
+                        <strong>Swaps:</strong> {completedSwaps} / {riderTrace.total_swaps}
                     </div>
                     <div style={styles.heroRow}>
-                        <strong>End State:</strong>{' '}
+                        <strong>Status:</strong>{' '}
                         <span style={{
-                            color: riderTrace.end_state === 'active' ? '#4caf50' : '#f44336'
+                            color: isActiveAtMinute ? '#4caf50' : '#f44336'
                         }}>
-                            {riderTrace.end_state}
+                            {isActiveAtMinute ? 'Active' : (riderTrace.end_state || 'Inactive')}
                         </span>
                     </div>
                     {riderTrace.total_distance_km && (
                         <div style={styles.heroRow}>
                             <strong>Distance:</strong> {riderTrace.total_distance_km.toFixed(1)} km
+                        </div>
+                    )}
+                    {completedStations.length > 0 && (
+                        <div style={styles.heroRow}>
+                            <strong>Last Station:</strong>{' '}
+                            <span style={{ color: '#E91E63' }}>
+                                {completedStations[completedStations.length - 1]}
+                            </span>
                         </div>
                     )}
                 </div>

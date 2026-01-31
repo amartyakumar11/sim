@@ -122,25 +122,32 @@ export const getSampleRiderTraces = () => {
         "R_001": {
             "rider_id": "R_001",
             "spawn_zone": "zone_01",
+            "spawn_minute": 610,
             "total_swaps": 4,
             "swap_stations": ["ST_01_01", "ST_02_01", "ST_03_01", "ST_01_02"],
+            "swap_minutes": [615, 620, 625, 632],
             "end_state": "active",
             "total_distance_km": 45.5
         },
         "R_002": {
             "rider_id": "R_002",
             "spawn_zone": "zone_02",
+            "spawn_minute": 625,
             "total_swaps": 1,
             "swap_stations": ["ST_02_02"],
+            "swap_minutes": [630],
             "end_state": "active",
             "total_distance_km": 12.0
         },
         "R_003": {
             "rider_id": "R_003",
             "spawn_zone": "zone_03",
+            "spawn_minute": 618,
             "total_swaps": 2,
             "swap_stations": ["ST_03_01", "ST_04_01"],
-            "end_state": "lost"
+            "swap_minutes": [620, 628],
+            "end_state": "lost",
+            "end_minute": 630
         }
     };
 };
