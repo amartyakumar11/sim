@@ -14,6 +14,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import CityMapView from '../components/CityMapView';
+import SimulationLogs from '../components/SimulationLogs';
 import {
     getMinuteRange,
     cumulativeZonePressure,
@@ -30,6 +31,7 @@ const CityVisualization = () => {
     const [zonePressure, setZonePressure] = useState([]);
     const [stationTimelines, setStationTimelines] = useState({});
     const [riderTraces, setRiderTraces] = useState({});
+    const [recommendations, setRecommendations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -56,11 +58,19 @@ const CityVisualization = () => {
                     const zonePressureData = await zonePressureRes.json();
                     const riderTraceData = await riderTracesRes.json();
 
+                    // Try fetch recommendations (might fail if not generated)
+                    let recData = [];
+                    try {
+                        const recRes = await fetch('/station_recommendations_lucknow.json');
+                        if (recRes.ok) recData = await recRes.json();
+                    } catch (e) { console.warn("No recommendations found"); }
+
                     // City graph is loaded separately by CityMapView
                     setCityGraph(null);
                     setZonePressure(zonePressureData);
                     setStationTimelines(stationTimelineData);
                     setRiderTraces(riderTraceData);
+                    setRecommendations(recData);
 
                     // Calculate minute range from station timeline data
                     const allMinutes = [];
@@ -258,6 +268,14 @@ const CityVisualization = () => {
                 </div>
             </div>
 
+            {/* Simulation Logs Side Panel */}
+            <SimulationLogs
+                currentMinute={currentMinute}
+                stationTimelines={filteredStationTimelines}
+                riderTraces={filteredRiderTraces}
+                recommendations={recommendations}
+            />
+
             {/* Map Container */}
             <main style={styles.main}>
                 <CityMapView
@@ -265,6 +283,7 @@ const CityVisualization = () => {
                     zonePressure={filteredZonePressure}
                     stationTimelines={filteredStationTimelines}
                     riderTraces={filteredRiderTraces}
+                    recommendations={recommendations}
                     currentMinute={currentMinute}
                 />
             </main>

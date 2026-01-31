@@ -430,20 +430,26 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
         # Initialize network graph and routing
         network_graph = NetworkGraph()
         
-        # Load baseline city graph topology if available
+        # Load city graph topology
         import os
-        graph_config_path = os.path.join(
-            os.path.dirname(__file__), 
-            'city_graph_baseline.json'
-        )
+        # Check if graph path is provided in config
+        graph_config_path = config.get('graph_path')
+        
+        # Fallback to baseline if not provided
+        if not graph_config_path:
+            graph_config_path = os.path.join(
+                os.path.dirname(__file__), 
+                'city_graph_baseline.json'
+            )
+            
         if os.path.exists(graph_config_path):
             try:
                 with open(graph_config_path, 'r', encoding='utf-8') as f:
                     graph_config = json.load(f)
                 network_graph.load_topology(graph_config)
-                print(f"[INFO] Loaded baseline city graph: {graph_config['metadata']['total_stations']} stations, {graph_config['metadata']['total_zones']} zones")
+                print(f"[INFO] Loaded city graph from {os.path.basename(graph_config_path)}: {graph_config['metadata']['total_stations']} stations, {graph_config['metadata']['total_zones']} zones")
             except Exception as e:
-                print(f"[WARN] Failed to load baseline graph: {e}. Continuing with empty graph.")
+                print(f"[WARN] Failed to load graph: {e}. Continuing with empty graph.")
         
         routing_engine = RoutingEngine(network_graph)
 
@@ -476,9 +482,15 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
                 event_logger=event_logger,
                 swap_time_sec=station_config["swap_time_sec"],
                 queue_limit=station_config["queue_limit"],
-                simulation_start_time=start_time
+                simulation_start_time=start_time,
+                latitude=station_config.get("latitude", 0.0),
+                longitude=station_config.get("longitude", 0.0)
             )
             stations[station_id] = station_process
+
+        # Link stations for neighbor search
+        for sp in stations.values():
+            sp.set_station_registry(stations)
 
         # Initialize demand generator
         demand_gen_config = {

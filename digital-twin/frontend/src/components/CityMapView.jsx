@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { BatteryCharging, User } from 'lucide-react';
+import { BatteryCharging, User, AlertCircle } from 'lucide-react';
 
 // --------------------------------------------------------
 // CONFIGURATION - LUCKNOW
@@ -26,7 +26,9 @@ const CityMapView = ({
     cityGraph,
     zonePressure = {},
     stationTimelines = {},
+
     riderTraces = {},
+    recommendations = [],
     currentMinute = null
 }) => {
     const [viewState, setViewState] = useState({
@@ -112,33 +114,60 @@ const CityMapView = ({
         return '#22c55e'; // Green
     };
 
-    // Build rider path GeoJSON for completed swaps
+    // Build rider path GeoJSON for active riders and redirections (manhattan style)
     const riderPathData = useMemo(() => {
         const features = [];
 
         Object.entries(riderTraces).forEach(([riderId, trace]) => {
-            const completedStations = trace.completedStations || trace.swap_stations || [];
-            if (completedStations.length < 2) return;
+            // 1. Draw Redirections (ACTIVE EVENT)
+            if (trace.redirections) {
+                trace.redirections.forEach(redir => {
+                    // Only show if it happened recently (within last 15 mins)
+                    if (currentMinute && redir.minute <= currentMinute && redir.minute > currentMinute - 15) {
+                        const fromStation = stationCoordsMap[redir.from_station];
+                        const toStation = stationCoordsMap[redir.to_station];
 
-            const coordinates = completedStations
-                .map(stationId => {
-                    const coord = stationCoordsMap[stationId];
-                    return coord ? [coord.lon, coord.lat] : null;
-                })
-                .filter(c => c !== null);
+                        if (fromStation && toStation) {
+                            // MANHATTAN INTERPOLATION (L-Shape)
+                            // Point A -> Corner -> Point B
+                            const corner = [toStation.lon, fromStation.lat];
 
-            if (coordinates.length >= 2) {
-                features.push({
-                    type: 'Feature',
-                    properties: {
-                        riderId,
-                        status: trace.isActiveAtMinute ? 'active' : 'inactive'
-                    },
-                    geometry: {
-                        type: 'LineString',
-                        coordinates
+                            features.push({
+                                type: 'Feature',
+                                properties: {
+                                    riderId,
+                                    type: 'redirection',
+                                    minute: redir.minute
+                                },
+                                geometry: {
+                                    type: 'LineString',
+                                    coordinates: [
+                                        [fromStation.lon, fromStation.lat],
+                                        corner,
+                                        [toStation.lon, toStation.lat]
+                                    ]
+                                }
+                            });
+                        }
                     }
                 });
+            }
+
+            // 2. Existing swap paths can be kept simple or removed to reduce clutter
+            // (Keeping simpler direct lines for completed swaps history)
+            const completedStations = trace.completedStations || trace.swap_stations || [];
+            if (completedStations.length >= 2) {
+                const coordinates = completedStations
+                    .map(sid => stationCoordsMap[sid] ? [stationCoordsMap[sid].lon, stationCoordsMap[sid].lat] : null)
+                    .filter(c => c !== null);
+
+                if (coordinates.length >= 2) {
+                    features.push({
+                        type: 'Feature',
+                        properties: { riderId, type: 'history' },
+                        geometry: { type: 'LineString', coordinates }
+                    });
+                }
             }
         });
 
@@ -146,7 +175,7 @@ const CityMapView = ({
             type: 'FeatureCollection',
             features
         };
-    }, [riderTraces, stationCoordsMap]);
+    }, [riderTraces, stationCoordsMap, currentMinute]);
 
     // Get hero rider (most swaps)
     const heroRider = useMemo(() => {
@@ -202,20 +231,55 @@ const CityMapView = ({
                 mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
                 style={{ width: '100%', height: '100%' }}
             >
-                {/* Rider paths disabled - straight lines to random stations
-                   TODO: Implement real road routing with OSRM/GraphHopper
+                {/* Rider paths (Redirections = Manhattan, History = Straight) */}
                 <Source id="rider-paths" type="geojson" data={riderPathData}>
+                    {/* History lines (faint) */}
                     <Layer
-                        id="rider-paths-line"
+                        id="rider-history-line"
                         type="line"
+                        filter={['==', 'type', 'history']}
                         paint={{
-                            'line-color': '#9333ea',
+                            'line-color': '#a855f7',
+                            'line-width': 1,
+                            'line-opacity': 0.3
+                        }}
+                    />
+                    {/* Redirection lines (Bold, Animated look) */}
+                    <Layer
+                        id="rider-redirect-line"
+                        type="line"
+                        filter={['==', 'type', 'redirection']}
+                        layout={{
+                            'line-join': 'round',
+                            'line-cap': 'round'
+                        }}
+                        paint={{
+                            'line-color': '#f59e0b',
                             'line-width': 4,
-                            'line-opacity': 0.8
+                            'line-dasharray': [2, 1], // MapLibre quirk: this works in paint for some versions but better to be safe
+                            'line-opacity': 0.9
                         }}
                     />
                 </Source>
-                */}
+
+                {/* Ghost Stations (Recommendations) */}
+                {recommendations && recommendations.map((rec, idx) => (
+                    rec.minute <= currentMinute && (
+                        <Marker
+                            key={`rec-${idx}`}
+                            longitude={rec.lon}
+                            latitude={rec.lat}
+                            anchor="center"
+                        >
+                            <div style={styles.ghostMarker}>
+                                <div style={styles.ghostIcon}>
+                                    <AlertCircle size={14} color="white" />
+                                </div>
+                                <div style={styles.ghostPulse} />
+                            </div>
+                        </Marker>
+                    )
+                ))}
 
                 {/* STEP 3 & 5: Station markers with congestion UI */}
                 {stations.map((station) => {
@@ -294,14 +358,15 @@ const CityMapView = ({
                 </p>
                 <div style={styles.statusRow}>
                     <span>Total Stations:</span>
-                    <span style={{ color: '#22c55e', fontWeight: 'bold' }}>
+                    <span style={{ color: '#6b7280', fontWeight: 'bold' }}>
                         {stations.length}
                     </span>
                 </div>
+                {/* Dynamic Stockout Counter */}
                 <div style={styles.statusRow}>
-                    <span>Zones:</span>
-                    <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>
-                        {lucknowData.metadata?.total_zones || 'N/A'}
+                    <span>Stockouts:</span>
+                    <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
+                        {stations.filter(s => getStationState(s.station_id).inventory === 0).length}
                     </span>
                 </div>
                 {heroRider && (
@@ -358,19 +423,27 @@ const CityMapView = ({
             <div style={styles.legend}>
                 <div style={styles.legendItem}>
                     <div style={{ ...styles.legendDot, backgroundColor: '#22c55e' }} />
-                    <span>Station OK</span>
+                    <span>Healthy (Has Batteries)</span>
                 </div>
                 <div style={styles.legendItem}>
                     <div style={{ ...styles.legendDot, backgroundColor: '#f59e0b' }} />
-                    <span>Lost Swaps</span>
+                    <span>Congested (Queueing)</span>
                 </div>
                 <div style={styles.legendItem}>
                     <div style={{ ...styles.legendDot, backgroundColor: '#ef4444' }} />
-                    <span>Under Pressure</span>
+                    <span>Stockout (0 Batteries)</span>
                 </div>
                 <div style={styles.legendItem}>
-                    <div style={{ ...styles.legendDot, backgroundColor: '#9333ea' }} />
-                    <span>Rider Path</span>
+                    <div style={{ ...styles.legendDot, backgroundColor: '#ef4444' }} />
+                    <span>Stockout (0 Batteries)</span>
+                </div>
+                <div style={styles.legendItem}>
+                    <div style={{ ...styles.legendDot, backgroundColor: '#f59e0b', border: '1px dashed orange' }} />
+                    <span>Redirection Path</span>
+                </div>
+                <div style={styles.legendItem}>
+                    <div style={{ ...styles.legendDot, backgroundColor: '#dc2626', borderRadius: 0, opacity: 0.7 }} />
+                    <span>Recommended Spot</span>
                 </div>
             </div>
         </div>
@@ -575,6 +648,33 @@ const styles = {
     loadingSpinner: {
         fontSize: 18,
         color: '#6b7280'
+    },
+    ghostMarker: {
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    ghostIcon: {
+        width: 20,
+        height: 20,
+        borderRadius: '50%',
+        backgroundColor: '#dc2626',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)',
+        border: '2px solid white',
+        zIndex: 10
+    },
+    ghostPulse: {
+        position: 'absolute',
+        width: 30,
+        height: 30,
+        borderRadius: '50%',
+        border: '2px solid #dc2626',
+        animation: 'pulse 2s infinite',
+        opacity: 0.6
     }
 };
 

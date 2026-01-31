@@ -36,6 +36,8 @@ class EventLogger:
         "charger_repair",
         "station_down",
         "station_up",
+        "rider_redirect",
+        "demand_gap"
     }
 
     def __init__(self, output_path: str):

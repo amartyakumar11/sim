@@ -103,6 +103,7 @@ class BatteryPool:
     ):
         """
         Return a battery to the station (rider dropped it off during swap).
+        Starts charging process but does NOT complete it instantly.
         
         Args:
             battery_id: Battery being returned
@@ -122,27 +123,40 @@ class BatteryPool:
         
         battery.return_to_station(self.station_id, return_time)
         
-        # Immediately start charging (simplified - instant transition)
+        # Start charging
         battery.start_charging(return_time)
         
-        # Log charge_start event (using existing event type)
+        # Log charge_start event
         self.event_logger.log_event(
             event_type="charge_start",
             station_id=self.station_id,
             battery_id=battery_id,
             metadata={"rider_id": rider_id}
         )
+
+    def complete_charging_for_battery(
+        self,
+        battery_id: str,
+        completion_time: datetime
+    ):
+        """
+        Complete charging for a specific battery.
         
-        # Complete charging immediately (Level-2 simplification - no charging time yet)
-        battery.complete_charging(return_time)
-        
-        # Log charge_complete event (using existing event type)
-        self.event_logger.log_event(
-            event_type="charge_complete",
-            station_id=self.station_id,
-            battery_id=battery_id,
-            metadata={"charge_duration_sec": 0}  # Instant for now
-        )
+        Args:
+            battery_id: Battery that finished charging
+            completion_time: Time of completion
+        """
+        if battery_id in self.batteries:
+            battery = self.batteries[battery_id]
+            battery.complete_charging(completion_time)
+            
+            # Log charge_complete event
+            self.event_logger.log_event(
+                event_type="charge_complete",
+                station_id=self.station_id,
+                battery_id=battery_id,
+                metadata={"charge_duration_sec": 3600}  # Placeholder duration
+            )
     
     def snapshot(self) -> dict:
         """
