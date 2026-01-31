@@ -5,6 +5,7 @@ import ScenarioSubmission from './pages/ScenarioSubmission'
 import JobMonitor from './pages/JobMonitor'
 import ResultsDashboard from './pages/ResultsDashboard'
 import SimulationScene from './pages/SimulationScene'
+import CityVisualization from './pages/CityVisualization'
 import Home from './pages/Home'
 import './App.css'
 
@@ -13,6 +14,7 @@ const { Header, Content, Footer } = Layout
 const NAV_ITEMS = [
   { key: 'home', path: '/', label: 'Overview' },
   { key: 'simulation', path: '/simulation', label: 'Live View' },
+  { key: 'city-map', path: '/city-map', label: 'City Map' },
   { key: 'submit', path: '/submit', label: 'New Scenario' },
   { key: 'monitor', path: '/monitor', label: 'Jobs' },
   { key: 'results', path: '/results', label: 'Results' },
@@ -25,8 +27,8 @@ function Navigation() {
   return (
     <nav style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       {NAV_ITEMS.map(item => {
-        const isActive = currentPath === item.path || 
-                        (item.path !== '/' && currentPath.startsWith(item.path))
+        const isActive = currentPath === item.path ||
+          (item.path !== '/' && currentPath.startsWith(item.path))
         return (
           <Link
             key={item.key}
@@ -67,9 +69,9 @@ function App() {
   return (
     <Router>
       <Layout className="app-layout">
-        <Header style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <Header style={{
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
           padding: '0 32px',
           background: 'var(--color-bg-elevated)',
@@ -83,19 +85,20 @@ function App() {
           </div>
           <Navigation />
         </Header>
-        
+
         <Content className="content-wrapper">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/simulation" element={<SimulationScene />} />
+            <Route path="/city-map" element={<CityVisualization />} />
             <Route path="/submit" element={<ScenarioSubmission />} />
             <Route path="/monitor" element={<JobMonitor />} />
             <Route path="/results/:runId" element={<ResultsDashboard />} />
             <Route path="/results" element={<ResultsDashboard />} />
           </Routes>
         </Content>
-        
-        <Footer style={{ 
+
+        <Footer style={{
           textAlign: 'center',
           background: 'var(--color-bg-elevated)',
           borderTop: '1px solid var(--color-border-light)',
