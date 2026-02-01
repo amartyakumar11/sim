@@ -1,6 +1,23 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+// In production (when served via nginx), use relative URLs
+// In development, use localhost:8000
+const getApiBaseUrl = () => {
+  // If VITE_API_URL is explicitly set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  
+  // In production (non-localhost), use relative path (nginx will proxy)
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return '/api'
+  }
+  
+  // Development default
+  return 'http://localhost:8000/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

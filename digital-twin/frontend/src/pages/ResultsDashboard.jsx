@@ -107,7 +107,9 @@ function ResultsDashboard() {
       try {
         // Fetch the frames.ndjson artifact
         const framesPath = result.artifacts.frames.replace('/app/data/', '')
-        const response = await fetch(`http://localhost:8000/data/${framesPath}`)
+        // Use relative URL for production compatibility (nginx proxies /data/ to API)
+        const apiBase = window.location.hostname === 'localhost' ? 'http://localhost:8000' : ''
+        const response = await fetch(`${apiBase}/data/${framesPath}`)
         const text = await response.text()
 
         // Parse NDJSON (newline-delimited JSON)

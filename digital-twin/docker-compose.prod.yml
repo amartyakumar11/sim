@@ -1,0 +1,48 @@
+# Production overrides for AWS deployment
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  api:
+    # Remove volume mount for production (use built code)
+    volumes:
+      - ./data:/app/data
+    # Remove --reload for production
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
+    restart: always
+
+  worker:
+    # Remove volume mount for production
+    volumes:
+      - ./data:/app/data
+    restart: always
+
+  frontend:
+    # Use production Dockerfile with nginx
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    # Remove volume mounts for production
+    volumes: []
+    environment:
+      - VITE_API_URL=/api
+    restart: always
+
+  postgres:
+    restart: always
+
+  redis:
+    restart: always
+
+  # Add Nginx reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - api
+      - frontend
+    restart: always
