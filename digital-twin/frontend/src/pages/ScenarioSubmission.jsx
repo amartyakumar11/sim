@@ -175,7 +175,6 @@ function ScenarioSubmission() {
         },
         "interventions": {
           "demand_multiplier": 20.0,
-          "arrivals_per_hour": 500,
           "pricing": {"primary_price": 170, "secondary_price": 70, "service_charge": 40}
         },
         "simulation_duration": 3600,
