@@ -127,20 +127,28 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
         simulation_duration = scenario_data.get("simulation_duration", 3600)
         duration_minutes = scenario_data.get("duration_minutes", simulation_duration // 60)
         
+        # Use seed from scenario or default to 42
+        seed = scenario_data.get("seed", 42)
+        
+        # Use fixed start_time based on seed for determinism
+        # This ensures same seed + same config = same results
+        base_date = datetime(2026, 1, 1, 10, 0, 0)  # Fixed reference date
+        start_time = base_date + timedelta(days=(seed % 365))
+        
         runtime_config = {
             "run_id": run_id,
             "data_dir": data_dir,
-            "seed": 42,  # Default seed
+            "seed": seed,
             "city": scenario_data.get("city_config", {}).get("city", "unknown"),
-            "start_time": datetime.now(),
-            "end_time": datetime.now() + timedelta(seconds=simulation_duration),
+            "start_time": start_time,
+            "end_time": start_time + timedelta(seconds=simulation_duration),
             "city_config": scenario_data.get("city_config", {}),
             "interventions": scenario_data.get("interventions", {}),
             "simulation_duration": simulation_duration,
             "duration_minutes": duration_minutes,  # Add this for ROI calculations
             "description": scenario_data.get("description", ""),
             "demand": {
-                "base_demand_rate_per_min": 0.5  # Default: ~30 riders per hour
+                "base_demand_rate_per_min": scenario_data.get("base_demand_rate_per_min", 0.167)  # ~10 riders/hr default
             },
             # Financial parameters (pass through from scenario)
             "revenue_per_swap": scenario_data.get("revenue_per_swap", 50.0),
@@ -175,7 +183,8 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
         summary = {
             "avg_wait_time": kpis.get("avg_wait_time"),
             "lost_swaps": kpis.get("lost_swaps"),
-            "charger_utilization": kpis.get("utilization"),  # Map utilization -> charger_utilization
+            "charger_utilization": kpis.get("charger_utilization", 0.0),  # Use actual charger utilization
+            "swap_bay_utilization": kpis.get("swap_bay_utilization", 0.0),  # Add swap bay utilization
             "idle_inventory": kpis.get("idle_inventory"),
             "city_throughput": kpis.get("throughput"),  # Map throughput -> city_throughput
             "total_cost_impact": kpis.get("operational_cost"),  # Map operational_cost -> total_cost_impact

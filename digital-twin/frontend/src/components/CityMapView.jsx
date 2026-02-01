@@ -11,9 +11,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { BatteryCharging, User, AlertCircle, Layers, Zap } from 'lucide-react';
+import { BatteryCharging, User, AlertCircle, Layers, Zap, TrendingUp } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 import HeatmapLayer from './HeatmapLayer';
 import { simulationAPI } from '../services/api';
+import { predictStationDemand } from '../utils/forecasting';
 import './CityMapView.css'; // Add CSS import
 
 // --------------------------------------------------------
@@ -45,6 +47,10 @@ const CityMapView = ({
     const [lucknowData, setLucknowData] = useState(null);
     const [loadError, setLoadError] = useState(null);
     const [showHeatmap, setShowHeatmap] = useState(false); // Heatmap toggle state
+
+    // Forecast State
+    const [forecastData, setForecastData] = useState(null);
+    const [loadingForecast, setLoadingForecast] = useState(false);
 
     // Level 2: Optimization
     const [optimizing, setOptimizing] = useState(false);
@@ -122,6 +128,23 @@ const CityMapView = ({
         });
         return map;
     }, [stations]);
+
+    // Level 3: Pre-calculate Risks for all stations
+    const stationRisks = useMemo(() => {
+        if (!stationTimelines || Object.keys(stationTimelines).length === 0) return {};
+
+        const risks = {};
+        Object.keys(stationTimelines).forEach(sid => {
+            const timeline = stationTimelines[sid];
+            if (timeline && timeline.states && currentMinute > 30) {
+                const result = predictStationDemand(sid, timeline, currentMinute);
+                if (result.risk_level === 'critical' || result.risk_level === 'high') {
+                    risks[sid] = result.risk_level;
+                }
+            }
+        });
+        return risks;
+    }, [stationTimelines, currentMinute]);
 
     // Get station state from timelines - includes queue, charging, inventory
     const getStationState = (stationId) => {
@@ -455,8 +478,6 @@ const CityMapView = ({
                                 style={styles.stationMarker}
                                 onMouseEnter={() => {
                                     console.log('Hover triggered for station:', station.station_id);
-                                    console.log('Station timelines:', stationTimelines);
-                                    console.log('State:', state);
 
                                     // Get station logs/events from timeline for tooltip
                                     const timeline = stationTimelines[station.station_id];
@@ -464,8 +485,6 @@ const CityMapView = ({
                                         ?.filter(e => e.minute <= currentMinute && e.minute > currentMinute - 60) // Last 60 mins
                                         ?.slice(-5) // Last 5 events
                                         ?.reverse() || [];
-
-                                    console.log('Recent events:', stEvents);
 
                                     setHoveredStation({
                                         id: station.station_id,
@@ -476,16 +495,13 @@ const CityMapView = ({
                                         ...state
                                     });
 
-                                    console.log('Hovered station set:', {
-                                        id: station.station_id,
-                                        zone_id: station.zone_id,
-                                        swap_bays: station.swap_bays,
-                                        chargers_total: station.chargers_total,
-                                        recentEvents: stEvents,
-                                        ...state
-                                    });
+                                    // Reset forecast when switching stations
+                                    setForecastData(null);
                                 }}
-                                onMouseLeave={() => setHoveredStation(null)}
+                                onMouseLeave={() => {
+                                    setHoveredStation(null);
+                                    setForecastData(null);
+                                }}
                             >
                                 {/* Pulsing ring for stockout */}
                                 {isStockout && (
@@ -498,6 +514,8 @@ const CityMapView = ({
                                     backgroundColor: stationColor,
                                     transform: (isStockout || isCongested) ? 'scale(1.2)' : 'scale(1)'
                                 }}>
+                                    {/* Show Zap if high risk forecast (mock logic or if we pre-fetched) */}
+                                    {/* simplified: just battery icon for now */}
                                     <BatteryCharging size={12} color="white" />
                                 </div>
 
@@ -505,6 +523,13 @@ const CityMapView = ({
                                 {state.queue > 0 && (
                                     <div style={styles.queueBadge}>
                                         Q:{state.queue}
+                                    </div>
+                                )}
+
+                                {/* Level 3: Predictive Risk Badge */}
+                                {stationRisks[station.station_id] && (
+                                    <div style={styles.riskBadge}>
+                                        🔮
                                     </div>
                                 )}
                             </div>
@@ -570,7 +595,73 @@ const CityMapView = ({
                                 </span>
                             </div>
 
-                            {/* Recent Events Log */}
+                            {/* Forecast Section */}
+                            <div style={{ marginTop: 8, borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>
+                                {!forecastData ? (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setLoadingForecast(true);
+                                            // Use local utility instead of API
+                                            setTimeout(() => {
+                                                const timeline = stationTimelines[hoveredStation.id];
+                                                const result = predictStationDemand(
+                                                    hoveredStation.id,
+                                                    timeline,
+                                                    currentMinute || 0
+                                                );
+                                                setForecastData(result);
+                                                setLoadingForecast(false);
+                                            }, 500);
+                                        }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '4px',
+                                            backgroundColor: '#f3f4f6',
+                                            border: '1px solid #d1d5db',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '11px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: 4
+                                        }}
+                                    >
+                                        {loadingForecast ? 'Analysing...' : <><TrendingUp size={12} /> Predict Stockouts</>}
+                                    </button>
+                                ) : (
+                                    <div style={{ width: 220, height: 120 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                            <span style={{ fontSize: 10, fontWeight: 'bold' }}>Future Inventory (1h)</span>
+                                            {forecastData.risk_level === 'critical' &&
+                                                <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 'bold' }}>⚠️ HIGH RISK</span>
+                                            }
+                                        </div>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={forecastData.forecast}>
+                                                <ReferenceLine y={0} stroke="red" strokeDasharray="3 3" />
+                                                <XAxis dataKey="minute" hide />
+                                                <YAxis domain={[0, 20]} hide />
+                                                <RechartsTooltip
+                                                    contentStyle={{ fontSize: '10px', padding: '2px' }}
+                                                    itemStyle={{ padding: 0 }}
+                                                    labelStyle={{ display: 'none' }}
+                                                />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="predicted_inventory"
+                                                    stroke={forecastData.risk_level === 'critical' ? '#ef4444' : '#10b981'}
+                                                    strokeWidth={2}
+                                                    dot={false}
+                                                />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Recent Events Log (Existing) */}
                             {hoveredStation.recentEvents && hoveredStation.recentEvents.length > 0 && (
                                 <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8, marginTop: 8 }}>
                                     <div style={{ fontSize: 10, fontWeight: 'bold', color: '#6b7280', marginBottom: 4 }}>RECENT ACTIVITY</div>
@@ -706,7 +797,7 @@ const CityMapView = ({
                     <span>Recommended Spot</span>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
@@ -770,6 +861,20 @@ const styles = {
         borderRadius: 3,
         whiteSpace: 'nowrap',
         zIndex: 3
+    },
+    riskBadge: {
+        position: 'absolute',
+        top: -8,
+        left: -12,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        fontSize: 12,
+        padding: '2px',
+        borderRadius: '50%',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        zIndex: 4,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
     },
     riderMarker: {
         position: 'relative',

@@ -528,7 +528,9 @@ def _run_real_simulation(config: dict, seed: int, city: str) -> dict:
         # Initialize demand generator
         demand_gen_config = {
             "rng_seed": metadata["seed"],
-            "base_demand_rate_per_min": demand_config["base_demand_rate_per_min"]
+            "base_demand_rate_per_min": demand_config["base_demand_rate_per_min"],
+            "global_multiplier": demand_config.get("global_multiplier", 1.0),
+            "zone_multipliers": demand_config.get("zone_multipliers", {})
         }
         station_list = [network_graph.get_station(sid) for sid in stations.keys()]
         from .demand_generator import DemandGenerator

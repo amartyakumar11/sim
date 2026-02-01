@@ -32,12 +32,14 @@ class KPIEngine:
         self.end_time = config.get("end_time")
         self.stations = config.get("stations", [])
 
-        # Build station lookup for swap_bays count
+        # Build station lookup for swap_bays and chargers count
         self.station_swap_bays: Dict[str, int] = {}
+        self.station_chargers: Dict[str, int] = {}
         for station in self.stations:
             station_id = station.get("station_id")
             if station_id:
                 self.station_swap_bays[station_id] = station.get("swap_bays", 1)
+                self.station_chargers[station_id] = station.get("chargers_total", station.get("swap_bays", 1))
 
         # TODO: Add caching for computed KPIs
         # TODO: Add validation for event structure
@@ -50,14 +52,16 @@ class KPIEngine:
             Dictionary containing all computed KPIs:
                 - avg_wait_time: float
                 - lost_swaps: int
-                - utilization: float
+                - swap_bay_utilization: float
+                - charger_utilization: float
                 - throughput: int
                 - idle_inventory: float
         """
         avg_wait_time = self._compute_avg_wait_time()
         lost_swaps = self._compute_lost_swaps()
         throughput = self._compute_throughput()
-        utilization = self._compute_utilization()
+        swap_bay_utilization = self._compute_swap_bay_utilization()
+        charger_utilization = self._compute_charger_utilization()
         idle_inventory = self._compute_idle_inventory()
         financials = self._compute_financials()
 
@@ -65,7 +69,8 @@ class KPIEngine:
             "revenue": financials.get("total_revenue", 0.0),
             "avg_wait_time": avg_wait_time,
             "lost_swaps": lost_swaps,
-            "utilization": utilization,
+            "swap_bay_utilization": swap_bay_utilization,
+            "charger_utilization": charger_utilization,
             "throughput": throughput,
             "idle_inventory": idle_inventory,
             "financials": financials
@@ -149,19 +154,21 @@ class KPIEngine:
         Compute throughput as count of completed swaps.
 
         Returns:
-            Count of swap_complete events
+            Count of swap_complete events with valid station_id and rider_id
         """
         throughput = 0
 
         for event in self.events:
             if event.get("event_type") == "swap_complete":
-                throughput += 1
+                # Only count real swaps (not synthetic/test events)
+                if event.get("station_id") and event.get("rider_id"):
+                    throughput += 1
 
         return throughput
 
-    def _compute_utilization(self) -> float:
+    def _compute_swap_bay_utilization(self) -> float:
         """
-        Compute utilization as total busy time / (swap_bays × total_time).
+        Compute swap bay utilization as total busy time / (swap_bays * total_time).
 
         Returns:
             Utilization value between 0.0 and 1.0
@@ -210,7 +217,7 @@ class KPIEngine:
                         station_busy_time[station_id] = station_busy_time.get(station_id, 0.0) + duration
                     del station_swap_starts[key]
 
-        # Calculate total swap bay capacity × time
+        # Calculate total swap bay capacity * time
         total_capacity_minutes = 0.0
         for station_id, swap_bays in self.station_swap_bays.items():
             total_capacity_minutes += swap_bays * total_sim_time
@@ -222,6 +229,69 @@ class KPIEngine:
         total_busy_time = sum(station_busy_time.values())
 
         return total_busy_time / total_capacity_minutes
+
+    def _compute_charger_utilization(self) -> float:
+        """
+        Compute charger utilization based on battery charging time.
+
+        Returns:
+            Utilization value between 0.0 and 1.0
+        """
+        if not self.start_time or not self.end_time:
+            return 0.0
+
+        total_sim_time = (self.end_time - self.start_time).total_seconds() / 60.0  # minutes
+        if total_sim_time <= 0:
+            return 0.0
+
+        # Track charging operations
+        station_charge_starts: Dict[Tuple[str, str], datetime] = {}  # (station_id, battery_id) -> start_time
+        station_charging_time: Dict[str, float] = {}  # station_id -> total charging minutes
+
+        for event in self.events:
+            event_type = event.get("event_type")
+            station_id = event.get("station_id")
+            battery_id = event.get("battery_id")
+            timestamp_str = event.get("timestamp")
+
+            if not station_id or not timestamp_str:
+                continue
+
+            try:
+                # Parse timestamp
+                if timestamp_str.endswith('Z'):
+                    timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                else:
+                    timestamp = datetime.fromisoformat(timestamp_str)
+                
+                if timestamp.tzinfo is not None and self.start_time.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=None)
+            except (ValueError, AttributeError):
+                continue
+
+            if event_type == "charge_start" and battery_id:
+                key = (station_id, battery_id)
+                station_charge_starts[key] = timestamp
+            elif event_type == "charge_complete" and battery_id:
+                key = (station_id, battery_id)
+                if key in station_charge_starts:
+                    duration = (timestamp - station_charge_starts[key]).total_seconds() / 60.0
+                    if duration > 0:
+                        station_charging_time[station_id] = station_charging_time.get(station_id, 0.0) + duration
+                    del station_charge_starts[key]
+
+        # Calculate total charger capacity * time
+        total_charger_capacity_minutes = 0.0
+        for station_id, chargers in self.station_chargers.items():
+            total_charger_capacity_minutes += chargers * total_sim_time
+
+        if total_charger_capacity_minutes <= 0:
+            return 0.0
+
+        # Sum all charging time
+        total_charging_time = sum(station_charging_time.values())
+
+        return min(1.0, total_charging_time / total_charger_capacity_minutes)  # Cap at 100%
 
     def _compute_idle_inventory(self) -> float:
         """
@@ -240,7 +310,7 @@ class KPIEngine:
         # Track inventory changes per station
         station_inventory: Dict[str, int] = {}
         station_inventory_time: Dict[str, float] = {}  # station_id -> last_change_time
-        station_idle_sum: Dict[str, float] = {}  # station_id -> sum of (idle_count × duration)
+        station_idle_sum: Dict[str, float] = {}  # station_id -> sum of (idle_count * duration)
 
         # Initialize from station configs
         for station in self.stations:
@@ -362,3 +432,4 @@ class KPIEngine:
             Dictionary containing all KPIs
         """
         return self.compute()
+

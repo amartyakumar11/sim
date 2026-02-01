@@ -53,6 +53,7 @@ class StationProcess:
             simulation_start_time: Simulation start datetime (for timestamp calculation)
             latitude: Station latitude
             longitude: Station longitude
+            pricing_config: Pricing configuration dict
         """
         self.station_id = station_id
         self.env = env
@@ -256,17 +257,12 @@ class StationProcess:
             # Get current inventory for logging
             current_inventory = self.battery_pool.get_available_count()
             
-            # Calculate financials based on BatterySmart pricing model
+            # Calculate financials using fixed pricing (no randomness)
             p_config = self.pricing_config
-            is_secondary = random.random() < p_config.get("secondary_prob", 0.3)
-            base_price = p_config.get("secondary_price", 70.0) if is_secondary else p_config.get("primary_price", 170.0)
-            
-            penalty = 0.0
-            if random.random() < p_config.get("penalty_prob", 0.05):
-                penalty = p_config.get("penalty_price", 60.0)
-                
+            # Use primary price as base (user-defined pricing model)
+            base_price = p_config.get("primary_price", 170.0)
             service_charge = p_config.get("service_charge", 40.0)
-            total_revenue = base_price + penalty + service_charge
+            total_revenue = base_price + service_charge
 
             self.event_logger.log_event(
                 event_type="swap_complete",
@@ -278,8 +274,8 @@ class StationProcess:
                     "financials": {
                         "revenue": total_revenue,
                         "base_price": base_price,
-                        "type": "secondary" if is_secondary else "primary",
-                        "penalty": penalty,
+                        "type": "primary",
+                        "penalty": 0.0,
                         "service_charge": service_charge
                     },
                     "inventory_level": current_inventory

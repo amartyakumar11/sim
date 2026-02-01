@@ -167,6 +167,16 @@ function ScenarioSubmission() {
         interventions.zone_demand_multipliers = zoneMultipliers
       }
 
+      // Add pricing configuration
+      interventions.pricing = {
+        primary_price: primaryPrice,
+        secondary_price: secondaryPrice,
+        secondary_prob: secondaryProb,
+        penalty_price: penaltyPrice,
+        penalty_prob: penaltyProb,
+        service_charge: serviceCharge
+      }
+
       const scenarioData = {
         description: values.description,
         city_config: {
@@ -176,6 +186,7 @@ function ScenarioSubmission() {
         interventions: interventions,
         simulation_duration: values.duration_minutes * 60,
         duration_minutes: values.duration_minutes,
+        seed: values.seed || 42,  // Include seed for determinism
         mode: mode
       }
 
@@ -245,7 +256,8 @@ function ScenarioSubmission() {
           onFinish={handleSubmit}
           initialValues={{
             description: 'Test scenario',
-            duration_minutes: 60
+            duration_minutes: 60,
+            seed: 42
           }}
         >
           {/* Description */}
@@ -267,8 +279,8 @@ function ScenarioSubmission() {
             />
           </Form.Item>
 
-          {/* Duration & Mode */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {/* Duration, Mode & Seed */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
             <Form.Item
               label={<span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Duration (minutes)</span>}
               name="duration_minutes"
@@ -282,6 +294,23 @@ function ScenarioSubmission() {
                   width: '100%',
                   borderRadius: 'var(--radius-md)'
                 }}
+              />
+            </Form.Item>
+
+            <Form.Item
+              label={<span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>Random Seed</span>}
+              name="seed"
+              tooltip="Same seed + same config = identical results (for reproducibility)"
+              initialValue={42}
+            >
+              <InputNumber
+                min={1}
+                max={999999}
+                style={{
+                  width: '100%',
+                  borderRadius: 'var(--radius-md)'
+                }}
+                placeholder="42"
               />
             </Form.Item>
 

@@ -74,6 +74,12 @@ export const simulationAPI = {
     const response = await apiClient.post('/analytics/recommendations', scenarioConfig)
     return response.data
   },
+
+  getForecast: async (scenarioConfig) => {
+    // Expects scenarioConfig.description to contain "forecast_request:ST_ID"
+    const response = await apiClient.post('/analytics/forecast', scenarioConfig)
+    return response.data
+  },
 }
 
 export default apiClient

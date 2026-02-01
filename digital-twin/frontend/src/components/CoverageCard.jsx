@@ -13,18 +13,28 @@ const CoverageCard = ({ scenarioConfig }) => {
         setLoading(true);
         setError(null);
         try {
-            // Need to pass full city config
-            // If scenarioConfig doesn't have it (e.g. initial load), we might fail
-            if (!scenarioConfig?.city_config) {
-                // Try fetching default if no scenario loaded
-                const res = await fetch('/city_graph_lucknow.json');
-                const cityConfig = await res.json();
-                const result = await simulationAPI.getCoverage({ city_config: cityConfig });
-                setData(result);
+            // Fetch the full city graph for zone centroids
+            const res = await fetch('/city_graph_lucknow.json');
+            const fullCityConfig = await res.json();
+            
+            // If we have scenario stations, use only those for coverage calculation
+            // Otherwise fall back to full city config
+            let configToAnalyze;
+            if (scenarioConfig?.city_config?.stations && scenarioConfig.city_config.stations.length > 0) {
+                // Use scenario's selected stations with full zone data for centroids
+                configToAnalyze = {
+                    ...fullCityConfig,
+                    stations: scenarioConfig.city_config.stations  // Only selected stations
+                };
             } else {
-                const result = await simulationAPI.getCoverage(scenarioConfig);
-                setData(result);
+                configToAnalyze = fullCityConfig;
             }
+            
+            const result = await simulationAPI.getCoverage({ 
+                city_config: configToAnalyze,
+                description: "Coverage analysis for scenario configuration"
+            });
+            setData(result);
         } catch (err) {
             console.error(err);
             setError("Failed to analyze coverage");

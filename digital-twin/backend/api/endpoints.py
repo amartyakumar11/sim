@@ -267,6 +267,46 @@ async def get_recommendations_endpoint(request: ScenarioRequest):
             detail=f"Optimization failed: {str(e)}"
         )
 
+@router.post("/analytics/forecast")
+async def get_forecast(request: ScenarioRequest):
+    """
+    Predict demand for a specific station based on simulation history.
+    Requires 'description' field to contain 'station_id:ST_ID'.
+    """
+    try:
+        # Extract station_id from description or auxiliary field in a real app
+        # Heuristic: We'll parse it from description purely for MVP simplicity
+        # Format "forecast_request:ST_123"
+        desc = request.description
+        if not desc or "forecast_request:" not in desc:
+             raise HTTPException(status_code=400, detail="Description must be 'forecast_request:ST_ID'")
+        
+        station_id = desc.split(":")[1]
+        
+        # Get global simulation context (hacky singleton access for MVP)
+        # In production this would be a proper service injection
+        from simulation.engine import city_manager
+        
+        # Use helper from forecasting module
+        from analytics.forecasting import generate_station_forecast
+        
+        # Determine current minute (mock or from timeline)
+        # We need the max minute from the timeline to know "now"
+        current_minute = 0
+        if city_manager and city_manager.timelines:
+             # Find max minute across all logs (approximate)
+             # Or just use the last minute of the requested station
+             s_log = city_manager.timelines.get(station_id)
+             if s_log and s_log.get("states"):
+                 current_minute = s_log["states"][-1]["minute"]
+        
+        return generate_station_forecast(station_id, current_minute, city_manager)
+        
+    except Exception as e:
+        print(f"Forecast Error: {e}")
+        # Return empty safe response instead of 500 to keep UI stable
+        return {"forecast": [], "risk_level": "unknown", "error": str(e)}
+
 @router.post("/run-scenarios")
 async def run_scenarios_endpoint(request: ScenarioComparisonRequest):
     """

@@ -19,7 +19,14 @@ const HeatmapLayer = ({ visible, scenarioConfig }) => {
                     // we can assume we have access to the current config context
                     // Or we mock it for the visualization if running live
 
-                    const response = await simulationAPI.getDemandHeatmap(scenarioConfig);
+                    // Ensure we have required fields for ScenarioRequest
+                    const requestData = {
+                        description: scenarioConfig.description || "Demand heatmap analysis",
+                        city_config: scenarioConfig.city_config || scenarioConfig,
+                        interventions: scenarioConfig.interventions || {}
+                    };
+
+                    const response = await simulationAPI.getDemandHeatmap(requestData);
                     setHeatmapData(response);
                 } catch (err) {
                     console.error("Failed to load heatmap data:", err);

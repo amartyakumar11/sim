@@ -1,88 +1,96 @@
 {
   "metadata": {
     "run_id": "integration_test_final",
-    "start_time": "2026-01-30T23:18:08.866949",
-    "end_time": "2026-01-30T23:48:08.866975",
+    "start_time": "2026-02-01T07:02:08.735649",
+    "end_time": "2026-02-01T07:32:08.735672",
     "seed": 42,
     "city": "TestCity"
   },
   "kpis": {
+    "revenue": 3570.0,
     "avg_wait_time": 0.06614691018518519,
     "lost_swaps": 0,
-    "utilization": 0.33999999508888895,
-    "throughput": 34,
-    "idle_inventory": 257.26254192287433,
-    "revenue": 17000.0,
-    "operational_cost": 400.0,
-    "net_profit": 16600.0,
-    "roi": 166.0
+    "swap_bay_utilization": 0.3399999956555556,
+    "charger_utilization": 0.0,
+    "throughput": 17,
+    "idle_inventory": 41.2626406133107,
+    "financials": {
+      "total_revenue": 3570.0,
+      "primary_swaps": 17,
+      "secondary_swaps": 0,
+      "total_penalties": 0.0,
+      "total_service_charges": 680.0
+    },
+    "operational_cost": 4000.0,
+    "net_profit": -430.0,
+    "roi": -0.43
   },
   "timeseries": {
     "wait_time": [],
     "inventory_levels": {
       "S1": [
         30,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21,
-        21
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30,
+        30
       ],
       "S2": [
         20,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11,
-        11
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20
       ]
     },
     "queue_lengths": {
@@ -154,19 +162,19 @@
   },
   "events": [
     {
-      "event_id": "4e0568c2-dcac-4524-967b-125a355dc7b6",
-      "timestamp": "2026-01-30T23:20:41.875992Z",
+      "event_id": "62e03033-a861-48d0-851b-ada25b193c6f",
+      "timestamp": "2026-02-01T07:04:41.744692Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000001",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:20:41.875992"
+        "arrival_time": "2026-02-01T07:04:41.744692"
       }
     },
     {
-      "event_id": "07b8e840-6dc7-4608-8e9c-aadcd29f676c",
-      "timestamp": "2026-01-30T17:48:08.869621Z",
+      "event_id": "92631572-bf78-46b0-8996-d2c55be75f8d",
+      "timestamp": "2026-02-01T01:32:08.742180Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -176,8 +184,8 @@
       }
     },
     {
-      "event_id": "c104afee-b8b8-4c79-b2ed-5db2e966ad92",
-      "timestamp": "2026-01-30T23:20:41.875992Z",
+      "event_id": "99eb920f-2f2e-47b5-91fc-3d62b8431ece",
+      "timestamp": "2026-02-01T07:04:41.744692Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000001",
@@ -185,8 +193,8 @@
       "metadata": {}
     },
     {
-      "event_id": "e3537ef3-6c16-4272-8845-e5508eea9ea6",
-      "timestamp": "2026-01-30T23:20:41.875992Z",
+      "event_id": "cb908288-36fa-4e24-b4cd-79ef4095f6d0",
+      "timestamp": "2026-02-01T07:04:41.744692Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000001",
@@ -194,30 +202,19 @@
       "metadata": {}
     },
     {
-      "event_id": "a710db96-11f6-4292-bc48-b375277dbd21",
-      "timestamp": "2026-01-30T17:48:08.870497Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 19
-      }
-    },
-    {
-      "event_id": "8c02d8fe-3237-4c7f-9b30-c56c64933d78",
-      "timestamp": "2026-01-30T23:20:45.675318Z",
+      "event_id": "00277400-f251-4c8e-aaaf-12234a13229b",
+      "timestamp": "2026-02-01T07:04:45.544018Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000002",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:20:45.675318"
+        "arrival_time": "2026-02-01T07:04:45.544018"
       }
     },
     {
-      "event_id": "bdb52b4d-924f-45f8-8d42-3a2fdd216a7a",
-      "timestamp": "2026-01-30T17:48:08.870592Z",
+      "event_id": "c07c8460-a76f-442b-b14a-c2ce4cf150bc",
+      "timestamp": "2026-02-01T01:32:08.744036Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -227,8 +224,8 @@
       }
     },
     {
-      "event_id": "5941befc-fa4a-495f-86c8-7173005872b6",
-      "timestamp": "2026-01-30T23:20:45.675318Z",
+      "event_id": "60b73a45-c748-444b-b90d-4b1e7c54dc18",
+      "timestamp": "2026-02-01T07:04:45.544018Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000002",
@@ -236,8 +233,8 @@
       "metadata": {}
     },
     {
-      "event_id": "33b9a088-bba0-454e-957f-7f147366964d",
-      "timestamp": "2026-01-30T23:20:45.675318Z",
+      "event_id": "c7a59662-9f07-450b-a7f2-946bebc39079",
+      "timestamp": "2026-02-01T07:04:45.544018Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000002",
@@ -245,30 +242,19 @@
       "metadata": {}
     },
     {
-      "event_id": "07a5bc08-d623-4349-a8fc-16c280e2dad5",
-      "timestamp": "2026-01-30T17:48:08.870728Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 29
-      }
-    },
-    {
-      "event_id": "c078f105-006c-4cdb-a8b8-ab279b3384ed",
-      "timestamp": "2026-01-30T23:21:33.918928Z",
+      "event_id": "b9e9baff-d5f6-4d86-a67b-2232ee9284dc",
+      "timestamp": "2026-02-01T07:05:33.787628Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000003",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:21:33.918928"
+        "arrival_time": "2026-02-01T07:05:33.787628"
       }
     },
     {
-      "event_id": "7cae3dc3-ac48-4409-a94a-02b496706bbe",
-      "timestamp": "2026-01-30T17:48:08.870782Z",
+      "event_id": "dae249fb-9d8b-4452-bab5-83a7af79ee7e",
+      "timestamp": "2026-02-01T01:32:08.745584Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -278,8 +264,8 @@
       }
     },
     {
-      "event_id": "520c1bd2-1297-4c9c-83cc-73e66c1e03b6",
-      "timestamp": "2026-01-30T23:21:33.918928Z",
+      "event_id": "b12a96ff-7202-4187-a514-78f772ddaaed",
+      "timestamp": "2026-02-01T07:05:33.787628Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000003",
@@ -287,8 +273,8 @@
       "metadata": {}
     },
     {
-      "event_id": "252b15fa-a7ae-42d0-a2ab-31f08c34a6f5",
-      "timestamp": "2026-01-30T23:21:33.918928Z",
+      "event_id": "7f96d53c-855b-49e4-b480-9fd908c29bca",
+      "timestamp": "2026-02-01T07:05:33.787628Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000003",
@@ -296,30 +282,19 @@
       "metadata": {}
     },
     {
-      "event_id": "f5c83a27-a8b5-48cf-b2ce-e1c3de792698",
-      "timestamp": "2026-01-30T17:48:08.870881Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 18
-      }
-    },
-    {
-      "event_id": "30f8b9d1-0804-49d7-88ee-487c60a33196",
-      "timestamp": "2026-01-30T23:22:11.806856Z",
+      "event_id": "ed6adf86-7bf5-4b55-8e1c-8a8350006bcd",
+      "timestamp": "2026-02-01T07:06:11.675556Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000004",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:22:11.806856"
+        "arrival_time": "2026-02-01T07:06:11.675556"
       }
     },
     {
-      "event_id": "7c492937-4e12-4a0f-9d3b-e03fda9c2642",
-      "timestamp": "2026-01-30T17:48:08.870928Z",
+      "event_id": "dc877c11-28bd-456e-96a3-f7c286db3161",
+      "timestamp": "2026-02-01T01:32:08.746713Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -329,8 +304,8 @@
       }
     },
     {
-      "event_id": "20efa0e7-fd37-48f7-abd3-f304ce792b1f",
-      "timestamp": "2026-01-30T23:22:11.806856Z",
+      "event_id": "37994937-4252-4e4b-b422-93024fec502c",
+      "timestamp": "2026-02-01T07:06:11.675556Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000004",
@@ -338,8 +313,8 @@
       "metadata": {}
     },
     {
-      "event_id": "da830acc-1562-4897-ac03-262f47324ea7",
-      "timestamp": "2026-01-30T23:22:11.806856Z",
+      "event_id": "90aab184-c075-4acb-8312-5a0d10a5a03c",
+      "timestamp": "2026-02-01T07:06:11.675556Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000004",
@@ -347,28 +322,27 @@
       "metadata": {}
     },
     {
-      "event_id": "2158bf0f-cd97-4f88-920b-d0737c802312",
-      "timestamp": "2026-01-30T17:48:08.871075Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 28
-      }
-    },
-    {
-      "event_id": "c07d130a-1e0b-4ae9-b0ba-19c82898dc04",
-      "timestamp": "2026-01-30T23:23:41.875992Z",
+      "event_id": "24cdd6e1-7a6c-4278-8915-24777cf12353",
+      "timestamp": "2026-02-01T07:07:41.744692Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000001",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -332.5499405,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 18
+      }
     },
     {
-      "event_id": "71fe07f5-4809-4f1c-a355-7a865a2145f3",
-      "timestamp": "2026-01-30T17:48:08.871166Z",
+      "event_id": "f01af28b-ebb0-46d5-8afa-463ebf7a29b1",
+      "timestamp": "2026-02-01T01:32:08.748542Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -379,17 +353,27 @@
       }
     },
     {
-      "event_id": "b3b832ba-c24c-40e9-b59c-2ba443af2ebb",
-      "timestamp": "2026-01-30T23:23:45.675318Z",
+      "event_id": "4962e253-be18-4fd4-a4b1-4d3e6c9945e1",
+      "timestamp": "2026-02-01T07:07:45.544018Z",
       "event_type": "swap_complete",
       "station_id": "S1",
       "rider_id": "rider_000002",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -332.6132537166667,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 28
+      }
     },
     {
-      "event_id": "6ecd6c48-153b-4920-96c9-9bbc3e7f7e2f",
-      "timestamp": "2026-01-30T17:48:08.871256Z",
+      "event_id": "39374a2f-8b42-45d2-b4a5-d7326ace1e68",
+      "timestamp": "2026-02-01T01:32:08.749139Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -400,17 +384,27 @@
       }
     },
     {
-      "event_id": "84c36c9b-1d78-4285-91dd-df36d36bde4a",
-      "timestamp": "2026-01-30T23:24:33.918928Z",
+      "event_id": "c434f62f-5935-42bc-99e8-0145557af839",
+      "timestamp": "2026-02-01T07:08:33.787628Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000003",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -333.4173048833334,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 18
+      }
     },
     {
-      "event_id": "8ca17ec6-7c88-4f69-85f3-c901ee7f1403",
-      "timestamp": "2026-01-30T17:48:08.871321Z",
+      "event_id": "631f15a3-a6eb-4baf-9bfe-2f2af5cbf6ed",
+      "timestamp": "2026-02-01T01:32:08.749575Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -421,17 +415,27 @@
       }
     },
     {
-      "event_id": "26b1a1b5-718e-4030-8c30-69cb49d883be",
-      "timestamp": "2026-01-30T23:25:11.806856Z",
+      "event_id": "43a53020-4abe-4b09-aa9e-ab4ae5db1f2a",
+      "timestamp": "2026-02-01T07:09:11.675556Z",
       "event_type": "swap_complete",
       "station_id": "S1",
       "rider_id": "rider_000004",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -334.0487622333333,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 28
+      }
     },
     {
-      "event_id": "85cd6872-fa32-42a6-98eb-654463d48f8d",
-      "timestamp": "2026-01-30T17:48:08.871390Z",
+      "event_id": "78796495-9cb1-4094-9bae-5ce19b55db26",
+      "timestamp": "2026-02-01T01:32:08.750224Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -442,19 +446,19 @@
       }
     },
     {
-      "event_id": "39188019-9745-4f64-a278-57a00dab0eb7",
-      "timestamp": "2026-01-30T23:25:31.845757Z",
+      "event_id": "8607ad53-3393-48a3-9fda-79801ee184e6",
+      "timestamp": "2026-02-01T07:09:31.714457Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000005",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:25:31.845757"
+        "arrival_time": "2026-02-01T07:09:31.714457"
       }
     },
     {
-      "event_id": "0fb6135f-bd65-479c-af05-3f189063413b",
-      "timestamp": "2026-01-30T17:48:08.871442Z",
+      "event_id": "f5f054af-24a4-4410-abc8-d42a81a2f932",
+      "timestamp": "2026-02-01T01:32:08.750527Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -464,8 +468,8 @@
       }
     },
     {
-      "event_id": "fc447ed4-66c0-49ac-b467-803d2d5ed99c",
-      "timestamp": "2026-01-30T23:25:31.845757Z",
+      "event_id": "4058c0dd-0594-4d18-bad6-beb3f27913d2",
+      "timestamp": "2026-02-01T07:09:31.714457Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000005",
@@ -473,8 +477,8 @@
       "metadata": {}
     },
     {
-      "event_id": "0f9428f6-a14e-4f5d-9741-934c6b2a5db4",
-      "timestamp": "2026-01-30T23:25:31.845757Z",
+      "event_id": "a8eb88e8-701d-4464-b8b4-104f99894e90",
+      "timestamp": "2026-02-01T07:09:31.714457Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000005",
@@ -482,30 +486,19 @@
       "metadata": {}
     },
     {
-      "event_id": "a1a73d2d-d5a0-44e7-9f3a-f1d4c1b8348b",
-      "timestamp": "2026-01-30T17:48:08.871540Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 17
-      }
-    },
-    {
-      "event_id": "c08cf732-3fde-4be5-8018-9f9167d00f36",
-      "timestamp": "2026-01-30T23:28:21.221708Z",
+      "event_id": "5955b560-bdc2-4c92-8274-513098a2c52d",
+      "timestamp": "2026-02-01T07:12:21.090408Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000006",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:28:21.221708"
+        "arrival_time": "2026-02-01T07:12:21.090408"
       }
     },
     {
-      "event_id": "31d0d3da-7204-4e67-9f75-a55e5af3a205",
-      "timestamp": "2026-01-30T17:48:08.871589Z",
+      "event_id": "510e180d-4f71-415b-8f81-7a3bbd6d95e2",
+      "timestamp": "2026-02-01T01:32:08.752444Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -515,8 +508,8 @@
       }
     },
     {
-      "event_id": "e34d5664-4d41-4512-8661-b2fa157a78b5",
-      "timestamp": "2026-01-30T23:28:21.221708Z",
+      "event_id": "7f0b703a-4a0f-4e05-8db7-3e47a4e2652b",
+      "timestamp": "2026-02-01T07:12:21.090408Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000006",
@@ -524,8 +517,8 @@
       "metadata": {}
     },
     {
-      "event_id": "fe7867a9-a77f-4fc4-9874-6b8bb4bb4f8b",
-      "timestamp": "2026-01-30T23:28:21.221708Z",
+      "event_id": "d4d62c6f-9f48-4d27-8b2e-0765fe4077fb",
+      "timestamp": "2026-02-01T07:12:21.090408Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000006",
@@ -533,28 +526,27 @@
       "metadata": {}
     },
     {
-      "event_id": "c47d74ff-5e80-4bc2-a3aa-1955000680b3",
-      "timestamp": "2026-01-30T17:48:08.876130Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 27
-      }
-    },
-    {
-      "event_id": "a00f3271-a39e-4868-97b0-81a1600a0a61",
-      "timestamp": "2026-01-30T23:28:31.845757Z",
+      "event_id": "3e8465f0-2ee4-415c-9617-700d5c7f47cc",
+      "timestamp": "2026-02-01T07:12:31.714457Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000005",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -337.38265936666664,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 17
+      }
     },
     {
-      "event_id": "7313839f-338d-4422-a285-f2a52e8d3105",
-      "timestamp": "2026-01-30T17:48:08.876312Z",
+      "event_id": "cfc0e90f-64f4-4540-8514-aabad77381e8",
+      "timestamp": "2026-02-01T01:32:08.755370Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -565,17 +557,27 @@
       }
     },
     {
-      "event_id": "a9bcea87-08fe-4ba1-b55b-5a628e67cb98",
-      "timestamp": "2026-01-30T23:31:21.221708Z",
+      "event_id": "ed272d1a-c5e8-4f07-b36c-eee905ba0555",
+      "timestamp": "2026-02-01T07:15:21.090408Z",
       "event_type": "swap_complete",
       "station_id": "S1",
       "rider_id": "rider_000006",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -340.2055775,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 27
+      }
     },
     {
-      "event_id": "836aa921-9a8c-4031-a59a-1f88f42c720d",
-      "timestamp": "2026-01-30T17:48:08.876461Z",
+      "event_id": "4ac5cb32-5dae-4105-bb64-40da3d19ebb5",
+      "timestamp": "2026-02-01T01:32:08.756113Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -586,19 +588,19 @@
       }
     },
     {
-      "event_id": "e96a9a25-68a4-42f9-aa39-d5cb7d65d9e1",
-      "timestamp": "2026-01-30T23:33:55.314923Z",
+      "event_id": "1ecf9d6d-bf7b-439c-80e4-1c6a4376514a",
+      "timestamp": "2026-02-01T07:17:55.183623Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000007",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:33:55.314923"
+        "arrival_time": "2026-02-01T07:17:55.183623"
       }
     },
     {
-      "event_id": "ab13996f-8fb0-4ba1-8a2f-d8b6bfbfc719",
-      "timestamp": "2026-01-30T17:48:08.876566Z",
+      "event_id": "7e1ad3e0-5f57-4f02-89bf-6c3bc3182b53",
+      "timestamp": "2026-02-01T01:32:08.756337Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -608,8 +610,8 @@
       }
     },
     {
-      "event_id": "fb9947d3-086a-48ad-8787-385c6dca151e",
-      "timestamp": "2026-01-30T23:33:55.314923Z",
+      "event_id": "cad776f4-5896-4050-8cb0-1ea1a575b4bd",
+      "timestamp": "2026-02-01T07:17:55.183623Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000007",
@@ -617,8 +619,8 @@
       "metadata": {}
     },
     {
-      "event_id": "25e96f09-7da0-41e9-b85f-2bf17f0b0f44",
-      "timestamp": "2026-01-30T23:33:55.314923Z",
+      "event_id": "955563da-fbd6-4b9b-8d1a-2a7725f5dcdc",
+      "timestamp": "2026-02-01T07:17:55.183623Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000007",
@@ -626,30 +628,19 @@
       "metadata": {}
     },
     {
-      "event_id": "0fb3ed47-b788-400b-b5c9-8ad03f647f33",
-      "timestamp": "2026-01-30T17:48:08.876719Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 16
-      }
-    },
-    {
-      "event_id": "8f0b3dd0-e001-4b1c-a68c-4fbe134b7f2a",
-      "timestamp": "2026-01-30T23:34:08.957784Z",
+      "event_id": "0839ea08-cc37-4934-893a-31520003fece",
+      "timestamp": "2026-02-01T07:18:08.826484Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000008",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:34:08.957784"
+        "arrival_time": "2026-02-01T07:18:08.826484"
       }
     },
     {
-      "event_id": "5d8363f0-cfd6-400f-8d0b-40ec7a1f4695",
-      "timestamp": "2026-01-30T17:48:08.876771Z",
+      "event_id": "7a50bd6d-ebd1-4e80-9a62-3dd348f00349",
+      "timestamp": "2026-02-01T01:32:08.758038Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -659,8 +650,8 @@
       }
     },
     {
-      "event_id": "49615470-93f2-4d29-9484-029a2636c040",
-      "timestamp": "2026-01-30T23:34:08.957784Z",
+      "event_id": "8eb0afe3-4f3d-4aa3-831d-c9d24d7ef418",
+      "timestamp": "2026-02-01T07:18:08.826484Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000008",
@@ -668,8 +659,8 @@
       "metadata": {}
     },
     {
-      "event_id": "9c5fdaac-0b4c-495a-9f5e-83b8dbb19f59",
-      "timestamp": "2026-01-30T23:34:08.957784Z",
+      "event_id": "cdf47483-8c08-44af-ab52-f5bb9df7c5f3",
+      "timestamp": "2026-02-01T07:18:08.826484Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000008",
@@ -677,30 +668,19 @@
       "metadata": {}
     },
     {
-      "event_id": "a206b537-5654-4299-8333-b6e6e8cb264d",
-      "timestamp": "2026-01-30T17:48:08.876913Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 26
-      }
-    },
-    {
-      "event_id": "6e63adaa-2b45-408a-8762-aadaccf20f4d",
-      "timestamp": "2026-01-30T23:35:31.164708Z",
+      "event_id": "cab0a8e1-7a7d-49ae-8c23-1698ccfa8f71",
+      "timestamp": "2026-02-01T07:19:31.033408Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000009",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:35:31.164708"
+        "arrival_time": "2026-02-01T07:19:31.033408"
       }
     },
     {
-      "event_id": "223a81ed-1254-46a3-a16a-87d36539ef45",
-      "timestamp": "2026-01-30T17:48:08.877229Z",
+      "event_id": "5150e32c-c9d9-4349-bfa4-9cf0a60980eb",
+      "timestamp": "2026-02-01T01:32:08.759624Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -710,8 +690,8 @@
       }
     },
     {
-      "event_id": "1bd6d869-0072-495e-9d5c-9a2335ab4b4f",
-      "timestamp": "2026-01-30T23:35:31.164708Z",
+      "event_id": "530fe24b-a377-420a-9fcd-db70a1f43a00",
+      "timestamp": "2026-02-01T07:19:31.033408Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000009",
@@ -719,8 +699,8 @@
       "metadata": {}
     },
     {
-      "event_id": "af3c8d58-dcaf-46ed-b178-e498fadf467a",
-      "timestamp": "2026-01-30T23:35:31.164708Z",
+      "event_id": "a4d3eaa5-bb74-4e02-8b49-efec59c4191d",
+      "timestamp": "2026-02-01T07:19:31.033408Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000009",
@@ -728,30 +708,19 @@
       "metadata": {}
     },
     {
-      "event_id": "113fa284-7f2e-4df3-93b0-8fc9da860b5d",
-      "timestamp": "2026-01-30T17:48:08.877440Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 15
-      }
-    },
-    {
-      "event_id": "41aa3671-1542-4f04-945e-ed55ce26e470",
-      "timestamp": "2026-01-30T23:35:35.702235Z",
+      "event_id": "6137e807-78af-4eb4-bc66-d0d2eba9156e",
+      "timestamp": "2026-02-01T07:19:35.570935Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000010",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:35:35.702235"
+        "arrival_time": "2026-02-01T07:19:35.570935"
       }
     },
     {
-      "event_id": "334de728-6b24-4a5a-be63-9d2aa746c920",
-      "timestamp": "2026-01-30T17:48:08.877498Z",
+      "event_id": "71d522d0-48a5-4ef0-9cf6-b46d846db43c",
+      "timestamp": "2026-02-01T01:32:08.761128Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -761,8 +730,8 @@
       }
     },
     {
-      "event_id": "b8004304-e9ac-43d0-a75f-c00f4f3fe855",
-      "timestamp": "2026-01-30T23:35:35.702235Z",
+      "event_id": "9a96fdb9-4d4f-4d58-9338-d68fe123899f",
+      "timestamp": "2026-02-01T07:19:35.570935Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000010",
@@ -770,8 +739,8 @@
       "metadata": {}
     },
     {
-      "event_id": "16af9c33-a9d6-4c30-a6a9-202018380975",
-      "timestamp": "2026-01-30T23:35:35.702235Z",
+      "event_id": "b7dc3627-9046-45cf-9094-af5380deedda",
+      "timestamp": "2026-02-01T07:19:35.570935Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000010",
@@ -779,30 +748,19 @@
       "metadata": {}
     },
     {
-      "event_id": "771e2fa5-b03f-454a-91c6-ad03cb9393e9",
-      "timestamp": "2026-01-30T17:48:08.877598Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 25
-      }
-    },
-    {
-      "event_id": "276029f5-ca67-4d8d-bba8-168d6e51c56f",
-      "timestamp": "2026-01-30T23:36:12.709739Z",
+      "event_id": "bbbfd47e-8a3d-4cdc-a25d-684b83ea1d7b",
+      "timestamp": "2026-02-01T07:20:12.578439Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000011",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:36:12.709739"
+        "arrival_time": "2026-02-01T07:20:12.578439"
       }
     },
     {
-      "event_id": "1110843d-284f-4cba-a930-cf3290d757eb",
-      "timestamp": "2026-01-30T17:48:08.877646Z",
+      "event_id": "28749750-d339-454b-bacc-5346706139b4",
+      "timestamp": "2026-02-01T01:32:08.762752Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -812,8 +770,8 @@
       }
     },
     {
-      "event_id": "8a27dea7-2c07-48f5-8902-1d63ba76e588",
-      "timestamp": "2026-01-30T23:36:12.709739Z",
+      "event_id": "4e9cf5a7-551b-4130-9245-7a23bf7d1cec",
+      "timestamp": "2026-02-01T07:20:12.578439Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000011",
@@ -821,17 +779,27 @@
       "metadata": {}
     },
     {
-      "event_id": "e9d1c01c-8cb6-4698-ac83-a8c8712dbf51",
-      "timestamp": "2026-01-30T23:36:55.314923Z",
+      "event_id": "5aeef833-b502-4210-a328-95bf2971a0b8",
+      "timestamp": "2026-02-01T07:20:55.183623Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000007",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -345.7736533666667,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 15
+      }
     },
     {
-      "event_id": "49363907-559f-4a36-88d3-45f072e85377",
-      "timestamp": "2026-01-30T17:48:08.877754Z",
+      "event_id": "713126fc-8973-473e-b464-9bcc277d961e",
+      "timestamp": "2026-02-01T01:32:08.765047Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -842,8 +810,8 @@
       }
     },
     {
-      "event_id": "9cc78dbc-b721-4853-80fb-3ae5d624e472",
-      "timestamp": "2026-01-30T23:36:55.314923Z",
+      "event_id": "96dbbf8f-26f5-46c6-9f17-6d83a753ab45",
+      "timestamp": "2026-02-01T07:20:55.183623Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000011",
@@ -851,28 +819,27 @@
       "metadata": {}
     },
     {
-      "event_id": "c661f0eb-5737-4ab9-859f-d121ada68e9f",
-      "timestamp": "2026-01-30T17:48:08.877815Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 14
-      }
-    },
-    {
-      "event_id": "f089d014-6236-4075-8e25-cd45a91a524f",
-      "timestamp": "2026-01-30T23:37:08.957784Z",
+      "event_id": "9cd28be8-e1d8-46e6-975b-9ccac639ce02",
+      "timestamp": "2026-02-01T07:21:08.826484Z",
       "event_type": "swap_complete",
       "station_id": "S1",
       "rider_id": "rider_000008",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -346.00100901666667,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 25
+      }
     },
     {
-      "event_id": "a1e9baca-41b5-4f5e-b50c-5788a24d3aeb",
-      "timestamp": "2026-01-30T17:48:08.877873Z",
+      "event_id": "11bf288e-180c-4e16-bd29-c7a4f4118ac9",
+      "timestamp": "2026-02-01T01:32:08.766404Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -883,19 +850,19 @@
       }
     },
     {
-      "event_id": "a537da95-fd13-4679-8ca9-d99eee1f190e",
-      "timestamp": "2026-01-30T23:37:58.297068Z",
+      "event_id": "897e239b-c6b3-4b3d-a6fe-7962b1de2956",
+      "timestamp": "2026-02-01T07:21:58.165768Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000012",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:37:58.297068"
+        "arrival_time": "2026-02-01T07:21:58.165768"
       }
     },
     {
-      "event_id": "6ea22d85-6e58-4dde-9ea8-ca4a454c5bc2",
-      "timestamp": "2026-01-30T17:48:08.877921Z",
+      "event_id": "03bdd622-3701-4b42-ba57-6f090ce208cf",
+      "timestamp": "2026-02-01T01:32:08.766619Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -905,8 +872,8 @@
       }
     },
     {
-      "event_id": "1d7d9d57-c4aa-4ce7-a312-7257eb8c1b18",
-      "timestamp": "2026-01-30T23:37:58.297068Z",
+      "event_id": "8321649a-49a0-4d6a-b747-032033d54027",
+      "timestamp": "2026-02-01T07:21:58.165768Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000012",
@@ -914,8 +881,8 @@
       "metadata": {}
     },
     {
-      "event_id": "28b24ae7-fd8e-40b7-a974-e0a2ede94095",
-      "timestamp": "2026-01-30T23:37:58.297068Z",
+      "event_id": "6ac9e284-9581-40fc-aa4f-b857d0644bfc",
+      "timestamp": "2026-02-01T07:21:58.165768Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000012",
@@ -923,30 +890,19 @@
       "metadata": {}
     },
     {
-      "event_id": "5c95aa61-5feb-47b8-a05f-7da2cecfd1c3",
-      "timestamp": "2026-01-30T17:48:08.878092Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 24
-      }
-    },
-    {
-      "event_id": "ed90e619-c11b-4ea1-9a35-b0b5c95b6723",
-      "timestamp": "2026-01-30T23:38:02.331229Z",
+      "event_id": "380eb2f8-1ae1-4b10-ac3e-997c8cbf8c6e",
+      "timestamp": "2026-02-01T07:22:02.199929Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000013",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:38:02.331229"
+        "arrival_time": "2026-02-01T07:22:02.199929"
       }
     },
     {
-      "event_id": "e131d06e-cc37-47e7-bfc9-7186d7d4623a",
-      "timestamp": "2026-01-30T17:48:08.878138Z",
+      "event_id": "379f548c-a5e3-485f-8d4b-16547e34bed4",
+      "timestamp": "2026-02-01T01:32:08.768372Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -956,8 +912,8 @@
       }
     },
     {
-      "event_id": "b5041f5b-c63d-4a49-a20e-03504e9205a6",
-      "timestamp": "2026-01-30T23:38:02.331229Z",
+      "event_id": "d27bc1d8-d68a-4c4a-a1bf-a3ad1dcf4513",
+      "timestamp": "2026-02-01T07:22:02.199929Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000013",
@@ -965,17 +921,27 @@
       "metadata": {}
     },
     {
-      "event_id": "d8868117-0e60-4363-a48c-31a04df02a18",
-      "timestamp": "2026-01-30T23:38:31.164708Z",
+      "event_id": "c7a3e84c-e94e-48b5-8cf9-4534b144ef97",
+      "timestamp": "2026-02-01T07:22:31.033408Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000009",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -347.3710624166667,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 14
+      }
     },
     {
-      "event_id": "eee2fc57-7cf8-4517-93a7-2777621dae09",
-      "timestamp": "2026-01-30T17:48:08.879574Z",
+      "event_id": "53ce8502-b960-461e-b051-8f43a3088067",
+      "timestamp": "2026-02-01T01:32:08.770033Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -986,8 +952,8 @@
       }
     },
     {
-      "event_id": "f75ce467-d522-4ed1-963c-b46ec3213366",
-      "timestamp": "2026-01-30T23:38:31.164708Z",
+      "event_id": "8c9977ee-5829-4c7f-9f2e-b019336cd08c",
+      "timestamp": "2026-02-01T07:22:31.033408Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000013",
@@ -995,30 +961,19 @@
       "metadata": {}
     },
     {
-      "event_id": "906b8f89-414a-48e5-a4b9-5825e2e90484",
-      "timestamp": "2026-01-30T17:48:08.879681Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 13
-      }
-    },
-    {
-      "event_id": "b1f66468-64dd-4efe-82cf-6eccde020659",
-      "timestamp": "2026-01-30T23:38:35.584979Z",
+      "event_id": "a52463d4-7194-4b16-84fb-04777931bf92",
+      "timestamp": "2026-02-01T07:22:35.453679Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000014",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:38:35.584979"
+        "arrival_time": "2026-02-01T07:22:35.453679"
       }
     },
     {
-      "event_id": "835a460d-c9f8-4504-bd29-353b46830e04",
-      "timestamp": "2026-01-30T17:48:08.879757Z",
+      "event_id": "d4fb34eb-3ebb-4b50-ab66-3b6fa9ec2813",
+      "timestamp": "2026-02-01T01:32:08.771062Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -1028,8 +983,8 @@
       }
     },
     {
-      "event_id": "f5f09653-8f4b-4838-94e0-0dfcafd99f20",
-      "timestamp": "2026-01-30T23:38:35.584979Z",
+      "event_id": "028775c0-aa84-49f9-9564-dafdd3e3c4a8",
+      "timestamp": "2026-02-01T07:22:35.453679Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000014",
@@ -1037,8 +992,8 @@
       "metadata": {}
     },
     {
-      "event_id": "59260c68-22ed-4ccc-878e-cb54ac530564",
-      "timestamp": "2026-01-30T23:38:35.584979Z",
+      "event_id": "df9eb2b5-e8a4-4619-8592-df8b5bd08d3c",
+      "timestamp": "2026-02-01T07:22:35.453679Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000014",
@@ -1046,28 +1001,27 @@
       "metadata": {}
     },
     {
-      "event_id": "b88c16ba-e5f7-4b09-893a-587a0c852bf1",
-      "timestamp": "2026-01-30T17:48:08.879901Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 23
-      }
-    },
-    {
-      "event_id": "db4b13e5-9ccf-4148-805f-ade191a1748b",
-      "timestamp": "2026-01-30T23:38:35.702235Z",
+      "event_id": "7e69a039-d459-419b-9a78-d1709b8d47c1",
+      "timestamp": "2026-02-01T07:22:35.570935Z",
       "event_type": "swap_complete",
       "station_id": "S1",
       "rider_id": "rider_000010",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -347.44664209999996,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 23
+      }
     },
     {
-      "event_id": "67d87022-d4af-489a-b9b5-76b19ee190b3",
-      "timestamp": "2026-01-30T17:48:08.879986Z",
+      "event_id": "c9082edd-f503-4df8-a48a-936b791f48af",
+      "timestamp": "2026-02-01T01:32:08.772708Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -1078,17 +1032,27 @@
       }
     },
     {
-      "event_id": "1154440d-d244-4cbb-92d6-d4f096a21702",
-      "timestamp": "2026-01-30T23:39:55.314923Z",
+      "event_id": "47d0c0b1-6d36-4c75-9e58-54643dd4cca6",
+      "timestamp": "2026-02-01T07:23:55.183623Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000011",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -348.06342628333334,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 13
+      }
     },
     {
-      "event_id": "233fa03d-0ca2-44f4-9ee8-6bc0b188c093",
-      "timestamp": "2026-01-30T17:48:08.880077Z",
+      "event_id": "0e8e7fe5-592e-4725-b85e-711f030c389f",
+      "timestamp": "2026-02-01T01:32:08.773338Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -1099,17 +1063,27 @@
       }
     },
     {
-      "event_id": "21638f0f-4d12-4f7b-88cd-c48173b55b2f",
-      "timestamp": "2026-01-30T23:40:58.297068Z",
+      "event_id": "1a348aa5-9b10-4a75-ad95-ee01df78eff2",
+      "timestamp": "2026-02-01T07:24:58.165768Z",
       "event_type": "swap_complete",
       "station_id": "S1",
       "rider_id": "rider_000012",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -349.82320295000005,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 23
+      }
     },
     {
-      "event_id": "18bbc836-4564-4cc3-9acf-e31f28ed4a8f",
-      "timestamp": "2026-01-30T17:48:08.880167Z",
+      "event_id": "6d9e2451-09ac-4f3e-a595-abfd181a8a2c",
+      "timestamp": "2026-02-01T01:32:08.773938Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -1120,19 +1094,19 @@
       }
     },
     {
-      "event_id": "a27432cf-32b4-439b-8496-300ec614c0b7",
-      "timestamp": "2026-01-30T23:41:13.008779Z",
+      "event_id": "a92332ac-20e4-465b-a082-1c8748493ae6",
+      "timestamp": "2026-02-01T07:25:12.877479Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000015",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:41:13.008779"
+        "arrival_time": "2026-02-01T07:25:12.877479"
       }
     },
     {
-      "event_id": "002c34ff-0590-4f3a-8afd-d3f52c97c461",
-      "timestamp": "2026-01-30T17:48:08.880236Z",
+      "event_id": "79fa2422-a92e-40f7-b064-6901b7178d62",
+      "timestamp": "2026-02-01T01:32:08.774169Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -1142,8 +1116,8 @@
       }
     },
     {
-      "event_id": "65d451c7-43e8-4767-a9ab-7cec083bb955",
-      "timestamp": "2026-01-30T23:41:13.008779Z",
+      "event_id": "aa502825-9735-45c1-8590-977c4351b98d",
+      "timestamp": "2026-02-01T07:25:12.877479Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000015",
@@ -1151,8 +1125,8 @@
       "metadata": {}
     },
     {
-      "event_id": "d37d4ed1-ef93-4bb3-bdfb-f535862037f1",
-      "timestamp": "2026-01-30T23:41:13.008779Z",
+      "event_id": "363b86d3-a191-4fcc-90c2-cd7c3054282c",
+      "timestamp": "2026-02-01T07:25:12.877479Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000015",
@@ -1160,28 +1134,27 @@
       "metadata": {}
     },
     {
-      "event_id": "ff6d6b54-f04d-41ae-ab5d-d82a928d6f1d",
-      "timestamp": "2026-01-30T17:48:08.880330Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 12
-      }
-    },
-    {
-      "event_id": "f7283ec2-1cef-474d-beec-03fb781b66df",
-      "timestamp": "2026-01-30T23:41:31.164708Z",
+      "event_id": "a5390f80-16e4-4c9c-867a-2f70953ee085",
+      "timestamp": "2026-02-01T07:25:31.033408Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000013",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -349.89040596666666,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 12
+      }
     },
     {
-      "event_id": "e6010fa8-c41c-4960-ab27-11898e1bb4d8",
-      "timestamp": "2026-01-30T17:48:08.880385Z",
+      "event_id": "69d513d9-29ea-4612-aad8-5b9e105752bc",
+      "timestamp": "2026-02-01T01:32:08.775972Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -1192,17 +1165,27 @@
       }
     },
     {
-      "event_id": "a9974897-1f21-4d8e-ba38-a37239fd155d",
-      "timestamp": "2026-01-30T23:41:35.584979Z",
+      "event_id": "db9b0d5a-d3ba-4fdd-8d7d-b407cf85f683",
+      "timestamp": "2026-02-01T07:25:35.453679Z",
       "event_type": "swap_complete",
       "station_id": "S1",
       "rider_id": "rider_000014",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -350.44462333333337,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 23
+      }
     },
     {
-      "event_id": "b8ffaca7-36fc-40c1-aa17-21bbeb39058c",
-      "timestamp": "2026-01-30T17:48:08.880443Z",
+      "event_id": "e6dbdd7d-6c38-49d1-acae-29cc5e4da7a1",
+      "timestamp": "2026-02-01T01:32:08.776650Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -1213,19 +1196,19 @@
       }
     },
     {
-      "event_id": "d955b867-276e-4445-b894-b172b0472cd4",
-      "timestamp": "2026-01-30T23:43:11.108167Z",
+      "event_id": "e9469b47-19fd-46c3-9613-54af94ecd509",
+      "timestamp": "2026-02-01T07:27:10.976867Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000016",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:43:11.108167"
+        "arrival_time": "2026-02-01T07:27:10.976867"
       }
     },
     {
-      "event_id": "22ec486e-2bf7-4229-9f02-b6113b046c9a",
-      "timestamp": "2026-01-30T17:48:08.880489Z",
+      "event_id": "e890d611-3897-41be-86ba-5bf4a454c394",
+      "timestamp": "2026-02-01T01:32:08.776908Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -1235,8 +1218,8 @@
       }
     },
     {
-      "event_id": "fe012046-21ba-4f65-9958-b24f500bf27b",
-      "timestamp": "2026-01-30T23:43:11.108167Z",
+      "event_id": "ea700e05-d8f1-49f4-9afa-e96b79d506c7",
+      "timestamp": "2026-02-01T07:27:10.976867Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000016",
@@ -1244,8 +1227,8 @@
       "metadata": {}
     },
     {
-      "event_id": "101494e9-8eca-47ec-bb83-982775c26272",
-      "timestamp": "2026-01-30T23:43:11.108167Z",
+      "event_id": "604d2ef4-1839-41d1-9359-b66ae6bcc3f6",
+      "timestamp": "2026-02-01T07:27:10.976867Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000016",
@@ -1253,30 +1236,19 @@
       "metadata": {}
     },
     {
-      "event_id": "8093bc6f-05f7-4bca-b49a-c3f4ca9e4047",
-      "timestamp": "2026-01-30T17:48:08.880584Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 22
-      }
-    },
-    {
-      "event_id": "1f93c265-570a-4c39-985b-04180d1af3bc",
-      "timestamp": "2026-01-30T23:43:48.462130Z",
+      "event_id": "e9303f15-812b-4234-9e05-c606c3cd1afb",
+      "timestamp": "2026-02-01T07:27:48.330830Z",
       "event_type": "rider_arrival",
       "station_id": "S2",
       "rider_id": "rider_000017",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:43:48.462130"
+        "arrival_time": "2026-02-01T07:27:48.330830"
       }
     },
     {
-      "event_id": "14de3e09-e807-401e-a1d3-272d167d87f4",
-      "timestamp": "2026-01-30T17:48:08.880631Z",
+      "event_id": "0e6e4c3d-b1ca-4a8e-942a-0b5a2cc0eaa8",
+      "timestamp": "2026-02-01T01:32:08.779011Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -1286,8 +1258,8 @@
       }
     },
     {
-      "event_id": "8a856424-03d4-4306-972a-cc216daa9643",
-      "timestamp": "2026-01-30T23:43:48.462130Z",
+      "event_id": "c4fc846b-bc1c-468b-93d6-3ee0f3f2734f",
+      "timestamp": "2026-02-01T07:27:48.330830Z",
       "event_type": "queue_join",
       "station_id": "S2",
       "rider_id": "rider_000017",
@@ -1295,8 +1267,8 @@
       "metadata": {}
     },
     {
-      "event_id": "10d34771-5a28-4a05-a88e-85ed08412977",
-      "timestamp": "2026-01-30T23:43:48.462130Z",
+      "event_id": "59606eee-a546-43a2-b4e5-bbdc9661abfb",
+      "timestamp": "2026-02-01T07:27:48.330830Z",
       "event_type": "swap_start",
       "station_id": "S2",
       "rider_id": "rider_000017",
@@ -1304,28 +1276,27 @@
       "metadata": {}
     },
     {
-      "event_id": "66b5677e-449f-40ed-b6b9-47cbbeba0e1c",
-      "timestamp": "2026-01-30T17:48:08.880719Z",
-      "event_type": "charge_complete",
-      "station_id": "S2",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 11
-      }
-    },
-    {
-      "event_id": "946f80f5-2154-4c41-afb5-24faa0ce6594",
-      "timestamp": "2026-01-30T23:44:13.008779Z",
+      "event_id": "95b34e10-c222-4274-9925-1f5429f9ae1f",
+      "timestamp": "2026-02-01T07:28:12.877479Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000015",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -353.0682779833333,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 11
+      }
     },
     {
-      "event_id": "f3f4ca09-0787-4e3e-b104-842a8ff6a1db",
-      "timestamp": "2026-01-30T17:48:08.880773Z",
+      "event_id": "ea78a398-469c-4cca-9d1a-118e73077dc0",
+      "timestamp": "2026-02-01T01:32:08.781160Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -1336,19 +1307,19 @@
       }
     },
     {
-      "event_id": "a685cf9a-bb33-4366-b968-67d40e0f1fb6",
-      "timestamp": "2026-01-30T23:46:01.933436Z",
+      "event_id": "957ffa87-7872-492a-9bef-61cdf7a6987f",
+      "timestamp": "2026-02-01T07:30:01.802136Z",
       "event_type": "rider_arrival",
       "station_id": "S1",
       "rider_id": "rider_000018",
       "battery_id": null,
       "metadata": {
-        "arrival_time": "2026-01-30T23:46:01.933436"
+        "arrival_time": "2026-02-01T07:30:01.802136"
       }
     },
     {
-      "event_id": "877d5d4e-d329-4a90-9004-c15fd122721b",
-      "timestamp": "2026-01-30T17:48:08.880820Z",
+      "event_id": "95495033-67d8-4c81-97d9-66061eff32e9",
+      "timestamp": "2026-02-01T01:32:08.781423Z",
       "event_type": "rider_arrival",
       "station_id": null,
       "rider_id": null,
@@ -1358,8 +1329,8 @@
       }
     },
     {
-      "event_id": "77479995-cc96-496e-bd01-ac4b74c17ebd",
-      "timestamp": "2026-01-30T23:46:01.933436Z",
+      "event_id": "bc580f65-927d-4f89-8c22-cc0faca81121",
+      "timestamp": "2026-02-01T07:30:01.802136Z",
       "event_type": "queue_join",
       "station_id": "S1",
       "rider_id": "rider_000018",
@@ -1367,8 +1338,8 @@
       "metadata": {}
     },
     {
-      "event_id": "4a58c726-f29a-4397-9d01-aad58c89d7d0",
-      "timestamp": "2026-01-30T23:46:01.933436Z",
+      "event_id": "04f9a5c6-765e-46a2-980c-871ade811234",
+      "timestamp": "2026-02-01T07:30:01.802136Z",
       "event_type": "swap_start",
       "station_id": "S1",
       "rider_id": "rider_000018",
@@ -1376,28 +1347,27 @@
       "metadata": {}
     },
     {
-      "event_id": "9ef49cd7-83eb-476f-8f34-205e55c7d7ac",
-      "timestamp": "2026-01-30T17:48:08.880906Z",
-      "event_type": "charge_complete",
-      "station_id": "S1",
-      "rider_id": null,
-      "battery_id": null,
-      "metadata": {
-        "battery_count": 21
-      }
-    },
-    {
-      "event_id": "4c721982-930f-478a-9957-581829e23571",
-      "timestamp": "2026-01-30T23:46:11.108167Z",
+      "event_id": "3f85327c-b163-4d07-b098-e82b579d476b",
+      "timestamp": "2026-02-01T07:30:10.976867Z",
       "event_type": "swap_complete",
       "station_id": "S1",
       "rider_id": "rider_000016",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -355.03656688333336,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 21
+      }
     },
     {
-      "event_id": "a2a3b010-44a4-4c46-bc4b-32b2969b59b6",
-      "timestamp": "2026-01-30T17:48:08.881374Z",
+      "event_id": "5316a945-f532-4114-b0d9-862e27bad43f",
+      "timestamp": "2026-02-01T01:32:08.783172Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
@@ -1408,17 +1378,27 @@
       }
     },
     {
-      "event_id": "f0df7ae6-043a-43d9-9716-c7a4805a59ef",
-      "timestamp": "2026-01-30T23:46:48.462130Z",
+      "event_id": "e239bed5-1caa-4923-8e1e-d999a675baef",
+      "timestamp": "2026-02-01T07:30:48.330830Z",
       "event_type": "swap_complete",
       "station_id": "S2",
       "rider_id": "rider_000017",
       "battery_id": null,
-      "metadata": {}
+      "metadata": {
+        "wait_time_minutes": -355.65912448333336,
+        "financials": {
+          "revenue": 210.0,
+          "base_price": 170.0,
+          "type": "primary",
+          "penalty": 0.0,
+          "service_charge": 40.0
+        },
+        "inventory_level": 11
+      }
     },
     {
-      "event_id": "8959a43d-108b-4333-9a90-8a7ccb6eb1d0",
-      "timestamp": "2026-01-30T17:48:08.881466Z",
+      "event_id": "44136f9c-2eae-4a2a-bb94-b74bcd34df1f",
+      "timestamp": "2026-02-01T01:32:08.783708Z",
       "event_type": "swap_complete",
       "station_id": null,
       "rider_id": null,
