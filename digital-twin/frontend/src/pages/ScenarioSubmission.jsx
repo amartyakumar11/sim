@@ -160,6 +160,28 @@ function ScenarioSubmission() {
         "mode": "real",
         "seed": 42
       }
+    },
+    congestionTest: {
+      name: "🚨 Congestion Test",
+      description: "1 bay per station + 20x demand = shows wait times",
+      config: {
+        "description": "Congestion test - extreme demand on minimal infrastructure",
+        "city_config": {
+          "zones": ["central_lucknow", "gomti_nagar"],
+          "stations": [
+            {"station_id": "S1", "lat": 26.86, "lon": 80.92, "zone_id": "central_lucknow", "chargers_total": 1, "swap_bays": 1, "inventory_capacity": 50, "inventory_current": 50},
+            {"station_id": "S2", "lat": 26.87, "lon": 81.00, "zone_id": "gomti_nagar", "chargers_total": 1, "swap_bays": 1, "inventory_capacity": 50, "inventory_current": 50}
+          ]
+        },
+        "interventions": {
+          "demand_multiplier": 20.0,
+          "arrivals_per_hour": 500,
+          "pricing": {"primary_price": 170, "secondary_price": 70, "service_charge": 40}
+        },
+        "simulation_duration": 3600,
+        "mode": "real",
+        "seed": 42
+      }
     }
   }
   
