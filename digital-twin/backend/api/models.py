@@ -161,6 +161,7 @@ class SimulationResult(BaseModel):
     events_count: int = Field(..., description="Number of events logged")
     frames_count: int = Field(..., description="Number of frame snapshots generated")
     artifacts: ArtifactInfo = Field(..., description="Paths to simulation artifacts")
+    city_config: Optional[Dict[str, Any]] = Field(None, description="City configuration with stations used in simulation")
     
 class ErrorResponse(BaseModel):
     """Standard error response"""

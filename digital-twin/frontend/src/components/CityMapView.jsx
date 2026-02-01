@@ -4,11 +4,12 @@
  * Uses MapLibre with OpenStreetMap for a real map background.
  * Renders battery swap stations from city_graph_lucknow.json.
  * Integrates with the playback system for time-based visualization.
+ * Uses OSRM for real road routing of rider movements.
  * 
  * This is a READ-ONLY visualization - NO simulation logic.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Map, { Marker, Source, Layer, Popup } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { BatteryCharging, User, AlertCircle, Layers, Zap, TrendingUp } from 'lucide-react';
@@ -16,6 +17,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ReferenceLin
 import HeatmapLayer from './HeatmapLayer';
 import { simulationAPI } from '../services/api';
 import { predictStationDemand } from '../utils/forecasting';
+import { getRoute, interpolateAlongRoute, getCacheStats } from '../services/osrmService';
 import './CityMapView.css'; // Add CSS import
 
 // --------------------------------------------------------
@@ -47,6 +49,11 @@ const CityMapView = ({
     const [lucknowData, setLucknowData] = useState(null);
     const [loadError, setLoadError] = useState(null);
     const [showHeatmap, setShowHeatmap] = useState(false); // Heatmap toggle state
+
+    // OSRM Route Cache State
+    const [osrmRoutes, setOsrmRoutes] = useState({}); // key: "fromId->toId", value: route coordinates
+    const [routesFetching, setRoutesFetching] = useState(false);
+    const fetchedRoutesRef = useRef(new Set()); // Track which routes we've already tried to fetch
 
     // Forecast State
     const [forecastData, setForecastData] = useState(null);
@@ -129,6 +136,87 @@ const CityMapView = ({
         return map;
     }, [stations]);
 
+    // OSRM Route Fetching: Collect all unique route pairs needed and fetch them
+    useEffect(() => {
+        if (!stationCoordsMap || Object.keys(stationCoordsMap).length === 0) return;
+        if (!riderTraces || Object.keys(riderTraces).length === 0) return;
+
+        // Collect all unique route pairs needed
+        const routePairs = new Set();
+
+        Object.values(riderTraces).forEach(trace => {
+            // Redirections
+            if (trace.redirections) {
+                trace.redirections.forEach(redir => {
+                    if (redir.from_station && redir.to_station) {
+                        const key = `${redir.from_station}->${redir.to_station}`;
+                        if (!fetchedRoutesRef.current.has(key) && !osrmRoutes[key]) {
+                            routePairs.add({ from: redir.from_station, to: redir.to_station, key });
+                        }
+                    }
+                });
+            }
+
+            // Swap station paths
+            const swapStations = trace.completedStations || trace.swap_stations || [];
+            for (let i = 0; i < swapStations.length - 1; i++) {
+                const fromId = swapStations[i];
+                const toId = swapStations[i + 1];
+                const key = `${fromId}->${toId}`;
+                if (!fetchedRoutesRef.current.has(key) && !osrmRoutes[key]) {
+                    routePairs.add({ from: fromId, to: toId, key });
+                }
+            }
+        });
+
+        // Fetch routes that we haven't tried yet
+        const pairsToFetch = Array.from(routePairs);
+        if (pairsToFetch.length === 0) return;
+
+        // Mark as fetching to prevent duplicate requests
+        pairsToFetch.forEach(pair => fetchedRoutesRef.current.add(pair.key));
+
+        const fetchRoutes = async () => {
+            setRoutesFetching(true);
+            const newRoutes = {};
+
+            for (const { from, to, key } of pairsToFetch) {
+                const fromCoords = stationCoordsMap[from];
+                const toCoords = stationCoordsMap[to];
+
+                if (!fromCoords || !toCoords) continue;
+
+                try {
+                    const route = await getRoute(
+                        { lat: fromCoords.lat, lon: fromCoords.lon },
+                        { lat: toCoords.lat, lon: toCoords.lon }
+                    );
+                    newRoutes[key] = route;
+                } catch (error) {
+                    console.warn(`Failed to fetch OSRM route for ${key}:`, error);
+                    // Fallback to straight line stored in osrmRoutes
+                    newRoutes[key] = {
+                        geoJsonCoordinates: [
+                            [fromCoords.lon, fromCoords.lat],
+                            [toCoords.lon, toCoords.lat]
+                        ],
+                        coordinates: [[fromCoords.lat, fromCoords.lon], [toCoords.lat, toCoords.lon]],
+                        isFallback: true
+                    };
+                }
+            }
+
+            // Merge new routes with existing
+            setOsrmRoutes(prev => ({ ...prev, ...newRoutes }));
+            setRoutesFetching(false);
+
+            // Log cache stats
+            console.log('[OSRM] Route cache stats:', getCacheStats());
+        };
+
+        fetchRoutes();
+    }, [riderTraces, stationCoordsMap, osrmRoutes]);
+
     // Level 3: Pre-calculate Risks for all stations
     const stationRisks = useMemo(() => {
         if (!stationTimelines || Object.keys(stationTimelines).length === 0) return {};
@@ -187,59 +275,112 @@ const CityMapView = ({
         return '#22c55e'; // Green (Healthy)
     };
 
-    // Build rider path GeoJSON for active riders and redirections (manhattan style)
+    // Build rider path GeoJSON for active riders and redirections (using OSRM real roads)
     const riderPathData = useMemo(() => {
         const features = [];
 
         Object.entries(riderTraces).forEach(([riderId, trace]) => {
-            // 1. Draw Redirections (ACTIVE EVENT)
+            // 1. Draw Redirections (ACTIVE EVENT) - using OSRM routes
             if (trace.redirections) {
                 trace.redirections.forEach(redir => {
                     // Only show if it happened recently (within last 15 mins)
                     if (currentMinute && redir.minute <= currentMinute && redir.minute > currentMinute - 15) {
-                        const fromStation = stationCoordsMap[redir.from_station];
-                        const toStation = stationCoordsMap[redir.to_station];
+                        const routeKey = `${redir.from_station}->${redir.to_station}`;
+                        const osrmRoute = osrmRoutes[routeKey];
 
-                        if (fromStation && toStation) {
-                            // MANHATTAN INTERPOLATION (L-Shape)
-                            // Point A -> Corner -> Point B
-                            const corner = [toStation.lon, fromStation.lat];
-
+                        if (osrmRoute && osrmRoute.geoJsonCoordinates) {
+                            // Use real road route from OSRM
                             features.push({
                                 type: 'Feature',
                                 properties: {
                                     riderId,
                                     type: 'redirection',
-                                    minute: redir.minute
+                                    minute: redir.minute,
+                                    isRealRoute: !osrmRoute.isFallback
                                 },
                                 geometry: {
                                     type: 'LineString',
+                                    coordinates: osrmRoute.geoJsonCoordinates
+                                }
+                            });
+                        } else {
+                            // Fallback to Manhattan L-shape while route loads
+                            const fromStation = stationCoordsMap[redir.from_station];
+                            const toStation = stationCoordsMap[redir.to_station];
+
+                            if (fromStation && toStation) {
+                                const corner = [toStation.lon, fromStation.lat];
+                                features.push({
+                                    type: 'Feature',
+                                    properties: {
+                                        riderId,
+                                        type: 'redirection',
+                                        minute: redir.minute,
+                                        isRealRoute: false
+                                    },
+                                    geometry: {
+                                        type: 'LineString',
+                                        coordinates: [
+                                            [fromStation.lon, fromStation.lat],
+                                            corner,
+                                            [toStation.lon, toStation.lat]
+                                        ]
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 2. Draw completed swap paths using OSRM routes
+            const completedStations = trace.completedStations || trace.swap_stations || [];
+            if (completedStations.length >= 2) {
+                // Build path segment by segment using OSRM routes
+                for (let i = 0; i < completedStations.length - 1; i++) {
+                    const fromId = completedStations[i];
+                    const toId = completedStations[i + 1];
+                    const routeKey = `${fromId}->${toId}`;
+                    const osrmRoute = osrmRoutes[routeKey];
+
+                    if (osrmRoute && osrmRoute.geoJsonCoordinates) {
+                        // Use real road route from OSRM
+                        features.push({
+                            type: 'Feature',
+                            properties: { 
+                                riderId, 
+                                type: 'history',
+                                segmentIndex: i,
+                                isRealRoute: !osrmRoute.isFallback
+                            },
+                            geometry: { 
+                                type: 'LineString', 
+                                coordinates: osrmRoute.geoJsonCoordinates 
+                            }
+                        });
+                    } else {
+                        // Fallback to straight line while route loads
+                        const fromStation = stationCoordsMap[fromId];
+                        const toStation = stationCoordsMap[toId];
+                        if (fromStation && toStation) {
+                            features.push({
+                                type: 'Feature',
+                                properties: { 
+                                    riderId, 
+                                    type: 'history',
+                                    segmentIndex: i,
+                                    isRealRoute: false
+                                },
+                                geometry: { 
+                                    type: 'LineString', 
                                     coordinates: [
                                         [fromStation.lon, fromStation.lat],
-                                        corner,
                                         [toStation.lon, toStation.lat]
                                     ]
                                 }
                             });
                         }
                     }
-                });
-            }
-
-            // 2. Existing swap paths can be kept simple or removed to reduce clutter
-            // (Keeping simpler direct lines for completed swaps history)
-            const completedStations = trace.completedStations || trace.swap_stations || [];
-            if (completedStations.length >= 2) {
-                const coordinates = completedStations
-                    .map(sid => stationCoordsMap[sid] ? [stationCoordsMap[sid].lon, stationCoordsMap[sid].lat] : null)
-                    .filter(c => c !== null);
-
-                if (coordinates.length >= 2) {
-                    features.push({
-                        type: 'Feature',
-                        properties: { riderId, type: 'history' },
-                        geometry: { type: 'LineString', coordinates }
-                    });
                 }
             }
         });
@@ -248,11 +389,11 @@ const CityMapView = ({
             type: 'FeatureCollection',
             features
         };
-    }, [riderTraces, stationCoordsMap, currentMinute]);
+    }, [riderTraces, stationCoordsMap, currentMinute, osrmRoutes]);
 
     // GENERATE ACTIVE RIDER CROWD
     // Since queues are often 0 due to rapid redirection, we visualize ALL active riders
-    // to show the scale of the simulation.
+    // to show the scale of the simulation. Uses OSRM routes for realistic road animation.
     const activeRiderData = useMemo(() => {
         const features = [];
 
@@ -268,23 +409,41 @@ const CityMapView = ({
             if (lastSwap || (trace.redirections && trace.redirections.some(r => r.minute <= currentMinute && r.minute > currentMinute - 20))) {
 
                 let lat, lon;
+                let isOnRoute = false;
 
-                // If redirecting, interpolate position
+                // If redirecting, interpolate position along OSRM route
                 const activeRedir = trace.redirections?.find(r => r.minute <= currentMinute && r.minute > currentMinute - 15);
 
                 if (activeRedir) {
-                    const from = stationCoordsMap[activeRedir.from_station];
-                    const to = stationCoordsMap[activeRedir.to_station];
-                    if (from && to) {
-                        // Linear interpolation based on time elapsed in redirection (15 mins duration assumed)
-                        const elapsed = currentMinute - activeRedir.minute;
-                        const progress = Math.min(elapsed / 15, 1);
-                        lat = from.lat + (to.lat - from.lat) * progress;
-                        lon = from.lon + (to.lon - from.lon) * progress;
+                    const routeKey = `${activeRedir.from_station}->${activeRedir.to_station}`;
+                    const osrmRoute = osrmRoutes[routeKey];
+                    
+                    // Calculate progress (0-1) based on time elapsed
+                    const elapsed = currentMinute - activeRedir.minute;
+                    const progress = Math.min(elapsed / 15, 1); // 15 min duration assumed
+                    
+                    if (osrmRoute && osrmRoute.coordinates && osrmRoute.coordinates.length > 0) {
+                        // Use OSRM route for realistic road animation
+                        const position = interpolateAlongRoute(osrmRoute.coordinates, progress);
+                        if (position) {
+                            lat = position.lat;
+                            lon = position.lon;
+                            isOnRoute = true;
+                        }
+                    } else {
+                        // Fallback to linear interpolation while route loads
+                        const from = stationCoordsMap[activeRedir.from_station];
+                        const to = stationCoordsMap[activeRedir.to_station];
+                        if (from && to) {
+                            lat = from.lat + (to.lat - from.lat) * progress;
+                            lon = from.lon + (to.lon - from.lon) * progress;
+                        }
                     }
                 } else if (lastSwap) {
                     // Stationary at last station (scattered slightly)
-                    const stationId = trace.swap_stations[swaps.indexOf(lastSwap)];
+                    const swapStations = trace.swap_stations || [];
+                    const lastSwapIndex = swaps.indexOf(lastSwap);
+                    const stationId = swapStations[lastSwapIndex] || swapStations[swapStations.length - 1];
                     const station = stationCoordsMap[stationId];
                     if (station) {
                         // Deterministic scatter based on RiderID hash to keep them stable
@@ -301,7 +460,8 @@ const CityMapView = ({
                         type: 'Feature',
                         properties: {
                             type: 'active_rider',
-                            riderId: riderId
+                            riderId: riderId,
+                            isOnRoute: isOnRoute
                         },
                         geometry: {
                             type: 'Point',
@@ -316,7 +476,7 @@ const CityMapView = ({
             type: 'FeatureCollection',
             features
         };
-    }, [riderTraces, stationCoordsMap, currentMinute]);
+    }, [riderTraces, stationCoordsMap, currentMinute, osrmRoutes]);
 
     // Get hero rider (most swaps)
     const heroRider = useMemo(() => {
@@ -795,6 +955,22 @@ const CityMapView = ({
                 <div style={styles.legendItem}>
                     <div style={{ ...styles.legendDot, backgroundColor: '#dc2626', borderRadius: 0, opacity: 0.7 }} />
                     <span>Recommended Spot</span>
+                </div>
+                {/* OSRM Route Status */}
+                <div style={{ ...styles.legendItem, borderTop: '1px solid #e5e7eb', paddingTop: 8, marginTop: 4 }}>
+                    <div style={{ 
+                        width: 10, 
+                        height: 10, 
+                        borderRadius: '50%', 
+                        backgroundColor: routesFetching ? '#f59e0b' : Object.keys(osrmRoutes).length > 0 ? '#22c55e' : '#9ca3af'
+                    }} />
+                    <span style={{ fontSize: 11, color: '#6b7280' }}>
+                        {routesFetching 
+                            ? 'Loading routes...' 
+                            : Object.keys(osrmRoutes).length > 0 
+                                ? `${Object.keys(osrmRoutes).length} road routes loaded`
+                                : 'No routes loaded'}
+                    </span>
                 </div>
             </div>
         </div >
