@@ -65,6 +65,10 @@ class KPIEngine:
         idle_inventory = self._compute_idle_inventory()
         financials = self._compute_financials()
 
+        # Calculate idle inventory as percentage of total capacity
+        total_capacity = sum(s.get("inventory_capacity", s.get("inventory_current", 40)) for s in self.stations)
+        idle_inventory_pct = (idle_inventory / total_capacity * 100) if total_capacity > 0 else 0.0
+
         return {
             "revenue": financials.get("total_revenue", 0.0),
             "avg_wait_time": avg_wait_time,
@@ -73,6 +77,7 @@ class KPIEngine:
             "charger_utilization": charger_utilization,
             "throughput": throughput,
             "idle_inventory": idle_inventory,
+            "idle_inventory_pct": idle_inventory_pct,
             "financials": financials
         }
 
@@ -279,6 +284,20 @@ class KPIEngine:
                     if duration > 0:
                         station_charging_time[station_id] = station_charging_time.get(station_id, 0.0) + duration
                     del station_charge_starts[key]
+
+        # Account for in-progress charging at simulation end
+        # Batteries that started charging but didn't complete still contribute to utilization
+        for (station_id, battery_id), start_ts in station_charge_starts.items():
+            # Calculate charging time up to simulation end
+            end_ts = self.end_time
+            if start_ts.tzinfo is not None and end_ts.tzinfo is None:
+                start_ts = start_ts.replace(tzinfo=None)
+            elif start_ts.tzinfo is None and end_ts.tzinfo is not None:
+                end_ts = end_ts.replace(tzinfo=None)
+            
+            duration = (end_ts - start_ts).total_seconds() / 60.0
+            if duration > 0:
+                station_charging_time[station_id] = station_charging_time.get(station_id, 0.0) + duration
 
         # Calculate total charger capacity * time
         total_charger_capacity_minutes = 0.0

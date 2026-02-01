@@ -1,0 +1,17 @@
+﻿{
+  "name": "High Demand Test",
+  "description": "Testing high demand with limited supply",
+  "duration_hours": 4,
+  "demand_multiplier": 3.0,
+  "city_config": {
+    "name": "Lucknow",
+    "bounds": {"min_lat": 26.75, "max_lat": 26.95, "min_lon": 80.85, "max_lon": 81.05},
+    "zones": ["central_lucknow", "gomti_nagar"],
+    "stations": [
+      {"station_id": "P0263", "name": "Central Station", "lat": 26.86697, "lon": 80.92068, "zone_id": "central_lucknow", "batteries": 5, "chargers": 2},
+      {"station_id": "P0249", "name": "Gomti Station", "lat": 26.87545, "lon": 81.02879, "zone_id": "gomti_nagar", "batteries": 5, "chargers": 2}
+    ]
+  },
+  "pricing": {"base_fee": 20, "per_km": 2, "surge_multiplier": 1.0},
+  "swap_duration_minutes": 8
+}

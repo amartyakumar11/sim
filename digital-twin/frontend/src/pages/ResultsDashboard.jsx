@@ -343,7 +343,7 @@ function ResultsDashboard() {
           {
             label: 'Idle Inventory',
             tooltip: 'Average % of batteries sitting unused at stations. Too high = wasted capital, too low = risk of stockouts.',
-            value: formatFixed(summary.idle_inventory, 1),
+            value: formatFixed(summary.idle_inventory_pct ?? summary.idle_inventory, 1),
             suffix: '%',
             color: '#71717a',
             status: 'neutral'

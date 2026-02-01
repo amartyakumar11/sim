@@ -1,0 +1,22 @@
+﻿{
+  "description": "TEST 3: High Pricing (300 primary)",
+  "city_config": {
+    "zones": ["central_lucknow"],
+    "stations": [
+      {"station_id": "S1", "lat": 26.86, "lon": 80.92, "zone_id": "central_lucknow", "chargers_total": 4}
+    ]
+  },
+  "interventions": {
+    "pricing": {
+      "primary_price": 300,
+      "secondary_price": 100,
+      "secondary_prob": 0.3,
+      "penalty_price": 50,
+      "penalty_prob": 0.05,
+      "service_charge": 50
+    }
+  },
+  "simulation_duration": 3600,
+  "mode": "real",
+  "seed": 42
+}

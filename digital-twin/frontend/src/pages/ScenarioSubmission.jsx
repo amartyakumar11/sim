@@ -15,7 +15,7 @@ import {
   Typography,
   Alert
 } from 'antd'
-import { SendOutlined, PlusOutlined, DeleteOutlined, CloudDownloadOutlined } from '@ant-design/icons'
+import { SendOutlined, PlusOutlined, DeleteOutlined, CloudDownloadOutlined, CodeOutlined, FormOutlined } from '@ant-design/icons'
 import { simulationAPI } from '../services/api'
 
 const { TextArea } = Input
@@ -48,7 +48,124 @@ function ScenarioSubmission() {
   })
 
   // Verify component version
-  console.log("ScenarioSubmission Loaded - v3 (Pricing Included)")
+  console.log("ScenarioSubmission Loaded - v4 (Presets Added)")
+
+  // JSON Editor Mode
+  const [jsonMode, setJsonMode] = useState(false)
+  
+  // Preset Scenarios
+  const presetScenarios = {
+    baseline: {
+      name: "🎯 Baseline",
+      description: "Normal operations - 1x demand, standard pricing",
+      config: {
+        "description": "Baseline scenario - normal operations",
+        "city_config": {
+          "zones": ["central_lucknow", "gomti_nagar"],
+          "stations": [
+            {"station_id": "S1", "lat": 26.86, "lon": 80.92, "zone_id": "central_lucknow", "chargers_total": 4},
+            {"station_id": "S2", "lat": 26.87, "lon": 81.00, "zone_id": "gomti_nagar", "chargers_total": 4}
+          ]
+        },
+        "interventions": {
+          "demand_multiplier": 1.0,
+          "pricing": {"primary_price": 170, "secondary_price": 70, "service_charge": 40}
+        },
+        "simulation_duration": 3600,
+        "mode": "real",
+        "seed": 42
+      }
+    },
+    stressTest: {
+      name: "🔥 Stress Test",
+      description: "5x demand surge - tests system limits",
+      config: {
+        "description": "Stress test - 5x demand surge",
+        "city_config": {
+          "zones": ["central_lucknow", "gomti_nagar"],
+          "stations": [
+            {"station_id": "S1", "lat": 26.86, "lon": 80.92, "zone_id": "central_lucknow", "chargers_total": 4},
+            {"station_id": "S2", "lat": 26.87, "lon": 81.00, "zone_id": "gomti_nagar", "chargers_total": 4}
+          ]
+        },
+        "interventions": {
+          "demand_multiplier": 5.0,
+          "pricing": {"primary_price": 170, "secondary_price": 70, "service_charge": 40}
+        },
+        "simulation_duration": 3600,
+        "mode": "real",
+        "seed": 42
+      }
+    },
+    premiumPricing: {
+      name: "💰 Premium Pricing",
+      description: "High pricing model - ₹250 base price",
+      config: {
+        "description": "Premium pricing experiment",
+        "city_config": {
+          "zones": ["central_lucknow", "gomti_nagar"],
+          "stations": [
+            {"station_id": "S1", "lat": 26.86, "lon": 80.92, "zone_id": "central_lucknow", "chargers_total": 4},
+            {"station_id": "S2", "lat": 26.87, "lon": 81.00, "zone_id": "gomti_nagar", "chargers_total": 4}
+          ]
+        },
+        "interventions": {
+          "demand_multiplier": 1.5,
+          "pricing": {"primary_price": 250, "secondary_price": 100, "service_charge": 50}
+        },
+        "simulation_duration": 3600,
+        "mode": "real",
+        "seed": 42
+      }
+    },
+    capacityExpansion: {
+      name: "🔋 Capacity Expansion",
+      description: "10 chargers per station - tests scaling",
+      config: {
+        "description": "Capacity expansion - 10 chargers per station",
+        "city_config": {
+          "zones": ["central_lucknow", "gomti_nagar"],
+          "stations": [
+            {"station_id": "S1", "lat": 26.86, "lon": 80.92, "zone_id": "central_lucknow", "chargers_total": 10},
+            {"station_id": "S2", "lat": 26.87, "lon": 81.00, "zone_id": "gomti_nagar", "chargers_total": 10}
+          ]
+        },
+        "interventions": {
+          "demand_multiplier": 3.0,
+          "pricing": {"primary_price": 170, "secondary_price": 70, "service_charge": 40}
+        },
+        "simulation_duration": 3600,
+        "mode": "real",
+        "seed": 42
+      }
+    },
+    peakHourCrunch: {
+      name: "⚡ Peak Hour Crunch",
+      description: "High demand + limited capacity = realistic stress",
+      config: {
+        "description": "Peak hour scenario - high demand, limited capacity",
+        "city_config": {
+          "zones": ["central_lucknow", "gomti_nagar", "hazratganj"],
+          "stations": [
+            {"station_id": "S1", "lat": 26.86, "lon": 80.92, "zone_id": "central_lucknow", "chargers_total": 2},
+            {"station_id": "S2", "lat": 26.87, "lon": 81.00, "zone_id": "gomti_nagar", "chargers_total": 2},
+            {"station_id": "S3", "lat": 26.85, "lon": 80.95, "zone_id": "hazratganj", "chargers_total": 2}
+          ]
+        },
+        "interventions": {
+          "demand_multiplier": 4.0,
+          "pricing": {"primary_price": 200, "secondary_price": 80, "service_charge": 40}
+        },
+        "simulation_duration": 3600,
+        "mode": "real",
+        "seed": 42
+      }
+    }
+  }
+  
+  const [selectedPreset, setSelectedPreset] = useState(null)
+  const [jsonInput, setJsonInput] = useState(JSON.stringify(presetScenarios.baseline.config, null, 2))
+  const [jsonError, setJsonError] = useState(null)
 
   // Pricing State
   const [primaryPrice, setPrimaryPrice] = useState(170)
@@ -190,6 +307,13 @@ function ScenarioSubmission() {
         mode: mode
       }
 
+      // DEBUG: Log what's being sent
+      console.log('=== SCENARIO SUBMISSION DEBUG ===')
+      console.log('demandMultiplier state:', demandMultiplier)
+      console.log('interventions:', JSON.stringify(interventions, null, 2))
+      console.log('Full scenarioData:', JSON.stringify(scenarioData, null, 2))
+      console.log('=================================')
+
       const response = await simulationAPI.submitScenario(scenarioData)
       message.success(`Scenario submitted successfully`)
 
@@ -220,29 +344,186 @@ function ScenarioSubmission() {
     setStations(stations.filter((_, i) => i !== index))
   }
 
+  // JSON Mode Submit Handler
+  const handleJsonSubmit = async () => {
+    setLoading(true)
+    setJsonError(null)
+    try {
+      const scenarioData = JSON.parse(jsonInput)
+      console.log('=== JSON SUBMISSION ===')
+      console.log(JSON.stringify(scenarioData, null, 2))
+      console.log('=======================')
+      
+      const response = await simulationAPI.submitScenario(scenarioData)
+      message.success(`Scenario submitted successfully! Run ID: ${response.run_id}`)
+      
+      setTimeout(() => {
+        navigate(`/monitor?runId=${response.run_id}`)
+      }, 1200)
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        setJsonError(`Invalid JSON: ${error.message}`)
+        message.error('Invalid JSON syntax')
+      } else {
+        const errorMsg = error.response?.data?.detail || error.message
+        setJsonError(errorMsg)
+        message.error(`Failed to submit: ${errorMsg}`)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Page Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{
-          fontSize: 32,
-          fontWeight: 700,
-          color: 'var(--color-text-primary)',
-          marginBottom: 8,
-          letterSpacing: '-0.02em'
-        }}>
-          New Scenario
-        </h1>
-        <p style={{
-          fontSize: 15,
-          color: 'var(--color-text-secondary)',
-          margin: 0
-        }}>
-          Configure your simulation with city layout, stations, and operational interventions.
-        </p>
+      <div style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{
+            fontSize: 32,
+            fontWeight: 700,
+            color: 'var(--color-text-primary)',
+            marginBottom: 8,
+            letterSpacing: '-0.02em'
+          }}>
+            New Scenario
+          </h1>
+          <p style={{
+            fontSize: 15,
+            color: 'var(--color-text-secondary)',
+            margin: 0
+          }}>
+            Configure your simulation with city layout, stations, and operational interventions.
+          </p>
+        </div>
+        <Button.Group>
+          <Button 
+            type={!jsonMode ? 'primary' : 'default'}
+            icon={<FormOutlined />}
+            onClick={() => setJsonMode(false)}
+          >
+            Form
+          </Button>
+          <Button 
+            type={jsonMode ? 'primary' : 'default'}
+            icon={<CodeOutlined />}
+            onClick={() => setJsonMode(true)}
+          >
+            JSON
+          </Button>
+        </Button.Group>
       </div>
 
-      {/* Main Form Card */}
+      {/* JSON Editor Mode */}
+      {jsonMode ? (
+        <div style={{
+          background: 'var(--color-bg-elevated)',
+          border: '1px solid var(--color-border-light)',
+          borderRadius: 'var(--radius-xl)',
+          padding: 32,
+          boxShadow: 'var(--shadow-sm)'
+        }}>
+          <h3 style={{ marginBottom: 16, color: 'var(--color-text-primary)' }}>
+            <CodeOutlined /> Direct JSON Input
+          </h3>
+          <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
+            Select a preset or customize your own scenario configuration.
+          </p>
+          
+          {/* Preset Buttons */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+              Quick Presets:
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {Object.entries(presetScenarios).map(([key, preset]) => (
+                <Button
+                  key={key}
+                  type={selectedPreset === key ? 'primary' : 'default'}
+                  size="small"
+                  onClick={() => {
+                    setSelectedPreset(key)
+                    setJsonInput(JSON.stringify(preset.config, null, 2))
+                    setJsonError(null)
+                    message.success(`Loaded: ${preset.name}`)
+                  }}
+                  title={preset.description}
+                  style={{
+                    borderRadius: 16,
+                    fontSize: 13
+                  }}
+                >
+                  {preset.name}
+                </Button>
+              ))}
+            </div>
+            {selectedPreset && (
+              <div style={{ 
+                marginTop: 8, 
+                fontSize: 12, 
+                color: 'var(--color-text-secondary)',
+                fontStyle: 'italic'
+              }}>
+                {presetScenarios[selectedPreset].description}
+              </div>
+            )}
+          </div>
+          
+          {jsonError && (
+            <Alert 
+              type="error" 
+              message="Validation Error" 
+              description={jsonError}
+              showIcon 
+              style={{ marginBottom: 16 }}
+              closable
+              onClose={() => setJsonError(null)}
+            />
+          )}
+          
+          <TextArea
+            value={jsonInput}
+            onChange={(e) => setJsonInput(e.target.value)}
+            rows={25}
+            style={{
+              fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+              fontSize: 13,
+              background: '#1a1a2e',
+              color: '#00ff88',
+              border: '1px solid #333',
+              borderRadius: 8
+            }}
+            placeholder="Enter JSON scenario..."
+          />
+          
+          <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
+            <Button 
+              type="primary" 
+              icon={<SendOutlined />}
+              onClick={handleJsonSubmit}
+              loading={loading}
+              size="large"
+            >
+              Submit JSON Scenario
+            </Button>
+            <Button 
+              onClick={() => {
+                try {
+                  const formatted = JSON.stringify(JSON.parse(jsonInput), null, 2)
+                  setJsonInput(formatted)
+                  setJsonError(null)
+                  message.success('JSON formatted')
+                } catch (e) {
+                  setJsonError(`Invalid JSON: ${e.message}`)
+                }
+              }}
+            >
+              Format JSON
+            </Button>
+          </div>
+        </div>
+      ) : (
+      /* Main Form Card */
       <div style={{
         background: 'var(--color-bg-elevated)',
         border: '1px solid var(--color-border-light)',
@@ -639,6 +920,7 @@ function ScenarioSubmission() {
           </Form.Item>
         </Form>
       </div>
+      )}
     </div>
   )
 }

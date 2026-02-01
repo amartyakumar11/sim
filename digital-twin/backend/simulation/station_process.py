@@ -228,7 +228,12 @@ class StationProcess:
                 return
             
             # Get rider's old battery (if exists)
+            # In battery swap model, riders ALWAYS arrive with a depleted battery
+            # Generate a synthetic battery ID if rider doesn't have one tracked
             old_battery_id = getattr(rider, 'current_battery_id', None)
+            if old_battery_id is None:
+                # Rider arrived with an untracked depleted battery
+                old_battery_id = f"depleted_{rider.id}"
             
             # Assign new battery to rider
             swap_time = self.simulation_start_time + timedelta(minutes=self.env.now) if self.simulation_start_time else datetime.utcnow()
@@ -237,11 +242,11 @@ class StationProcess:
             # Update rider's battery tracking
             rider.current_battery_id = new_battery.battery_id if new_battery else None
             
-            # Return old battery to pool (if exists)
-            if old_battery_id:
-                self.battery_pool.return_battery(old_battery_id, rider.id, swap_time)
-                # Spawn charging process (async)
-                self.env.process(self.charge_battery(old_battery_id))
+            # Return old battery to pool and start charging
+            # This represents the depleted battery the rider brought in
+            self.battery_pool.return_battery(old_battery_id, rider.id, swap_time)
+            # Spawn charging process (async)
+            self.env.process(self.charge_battery(old_battery_id))
             
             print(f"[DEBUG] process_swap: inventory consumed, starting swap")
             # Perform swap (takes swap_time_sec seconds of simulated time)
@@ -323,10 +328,26 @@ class StationProcess:
             # Wait for charger to become available
             yield request
             
+            # Log charge_start event
+            self.event_logger.log_event(
+                event_type="charge_start",
+                station_id=self.station_id,
+                battery_id=battery_id,
+                timestamp=self.get_current_simtime_iso()
+            )
+            
             # Simulate charging time (e.g., 60 minutes)
             # TODO: Make this configurable
             charge_duration = 60
             yield self.env.timeout(charge_duration)
+            
+            # Log charge_complete event
+            self.event_logger.log_event(
+                event_type="charge_complete",
+                station_id=self.station_id,
+                battery_id=battery_id,
+                timestamp=self.get_current_simtime_iso()
+            )
             
             # Complete charging
             completion_time = self.simulation_start_time + timedelta(minutes=self.env.now) if self.simulation_start_time else datetime.utcnow()

@@ -126,13 +126,8 @@ class BatteryPool:
         # Start charging
         battery.start_charging(return_time)
         
-        # Log charge_start event
-        self.event_logger.log_event(
-            event_type="charge_start",
-            station_id=self.station_id,
-            battery_id=battery_id,
-            metadata={"rider_id": rider_id}
-        )
+        # Note: charge_start event is logged by StationProcess.charge_battery()
+        # to ensure simulation timestamps are used correctly
 
     def complete_charging_for_battery(
         self,

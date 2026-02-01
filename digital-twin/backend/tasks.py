@@ -186,6 +186,7 @@ def run_simulation_task(self, run_id: str, scenario_data: Dict[str, Any]):
             "charger_utilization": kpis.get("charger_utilization", 0.0),  # Use actual charger utilization
             "swap_bay_utilization": kpis.get("swap_bay_utilization", 0.0),  # Add swap bay utilization
             "idle_inventory": kpis.get("idle_inventory"),
+            "idle_inventory_pct": kpis.get("idle_inventory_pct", 0.0),  # Percentage version for display
             "city_throughput": kpis.get("throughput"),  # Map throughput -> city_throughput
             "total_cost_impact": kpis.get("operational_cost"),  # Map operational_cost -> total_cost_impact
             "roi": kpis.get("roi"),

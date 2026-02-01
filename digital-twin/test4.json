@@ -1,0 +1,15 @@
+﻿{
+  "description": "TEST 4: Low Supply (1 charger, high demand)",
+  "city_config": {
+    "zones": ["central_lucknow"],
+    "stations": [
+      {"station_id": "S1", "lat": 26.86, "lon": 80.92, "zone_id": "central_lucknow", "chargers_total": 1}
+    ]
+  },
+  "interventions": {
+    "demand_multiplier": 3.0
+  },
+  "simulation_duration": 3600,
+  "mode": "real",
+  "seed": 42
+}

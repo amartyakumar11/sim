@@ -1,0 +1,24 @@
+﻿{
+  "description": "Debug test with interventions",
+  "city_config": {
+    "zones": ["central_lucknow", "gomti_nagar"],
+    "stations": [
+      {"station_id": "P0263", "lat": 26.86697, "lon": 80.92068, "zone_id": "central_lucknow", "chargers_total": 5}
+    ]
+  },
+  "interventions": {
+    "demand_multiplier": 3.0,
+    "pricing": {
+      "primary_price": 200,
+      "secondary_price": 80,
+      "secondary_prob": 0.3,
+      "penalty_price": 50,
+      "penalty_prob": 0.05,
+      "service_charge": 30
+    }
+  },
+  "simulation_duration": 3600,
+  "duration_minutes": 60,
+  "seed": 42,
+  "mode": "real"
+}
